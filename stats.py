@@ -91,7 +91,7 @@ def processsoup(soup, position, view, tablename, season, conn):
             # TODO Get the team ID for the current team
             # teamabbr = cellvalues[2].text.replace(' ', '').split(',')[-1]
             values[2] = None
-        elif view == 'summary' and position == 'S':
+        elif view == 'summary' and position == 'S' and season < 20052006:
             # Game-tying goals removed for 2004/2005, removing it for prior years
             del values[11]
 
@@ -148,7 +148,7 @@ def main():
         print 'invalid position %s' % POSITION
         usage()
         raise SystemExit
-    if VIEW not in views[POSITION].keys():
+    if VIEW and VIEW not in views[POSITION].keys():
         print 'invalid view %s' % VIEW
         usage()
         raise SystemExit
