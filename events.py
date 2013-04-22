@@ -169,10 +169,14 @@ def processevent(game_id, event, conn):
 
 
 # Processes a game
-def processgame(season, game, gameinfo, conn):
+def processgame(season, game, conn):
     
-    game_id = gameinfo['id']
-    
+    game_id = game['id']
+    fetchedgame = getgame(game_id, season)
+
+    if fetchedgame is None:
+        return None
+
     # Clear out data
     query = 'DELETE FROM events_players WHERE game_id = %s'
     conn.execute(query, [game_id])
@@ -187,35 +191,36 @@ def processgame(season, game, gameinfo, conn):
     conn.execute(query, [game_id])
     
     query = 'SELECT * FROM teams WHERE team_id = %s'
-    result = conn.execute(query, [game['awayteamid']])
+    result = conn.execute(query, [fetchedgame['awayteamid']])
     if result.rowcount == 0:
         query = 'INSERT INTO teams (team_id, name, nickname) VALUES(%s, %s, %s)'
-        conn.execute(query, [game['awayteamid'], game['awayteamname'], game['awayteamnick']])
+        conn.execute(query, [fetchedgame['awayteamid'], fetchedgame['awayteamname'], fetchedgame['awayteamnick']])
 
     query = 'SELECT * FROM teams WHERE team_id = %s'
-    result = conn.execute(query, [game['hometeamid']])
+    result = conn.execute(query, [fetchedgame['hometeamid']])
     if result.rowcount == 0:
         query = 'INSERT INTO teams (team_id, name, nickname) VALUES(%s, %s, %s)'
-        conn.execute(query, [game['hometeamid'], game['hometeamname'], game['hometeamnick']])
+        conn.execute(query, [fetchedgame['hometeamid'], fetchedgame['hometeamname'], fetchedgame['hometeamnick']])
 
     values = [season, \
         game_id, \
-        game['awayteamid'], \
-        game['hometeamid'], \
-        gameinfo['date'], \
-        gameinfo['hts'], \
-        gameinfo['ats'], \
-        gameinfo['rl'], \
-        gameinfo['gcl'], \
-        gameinfo['gcll'], \
-        gameinfo['bs'], \
-        gameinfo['bsc'], \
-        gameinfo['gs']
+        fetchedgame['awayteamid'], \
+        fetchedgame['hometeamid'], \
+        game['date'], \
+        game['hts'], \
+        game['ats'], \
+        game['rl'], \
+        game['gcl'], \
+        game['gcll'], \
+        game['bs'], \
+        game['bsc'], \
+        game['gs']
     ]
+
     query = 'INSERT INTO games (season, game_id, away_team_id, home_team_id, date, home_team_score, away_team_score, rl, gcl, gcll, bs, bsc, gs) VALUES(%s)' % ','.join(['%s'] * len(values))
     conn.execute(query, values)
 
-    for event in game['plays']['play']:
+    for event in fetchedgame['plays']['play']:
         processevent(game_id, event, conn)
 
 
@@ -277,16 +282,12 @@ def main():
                 gameargs['day'] = DAY
     else:
         # Just yesterday!
-        gameargs['date'] = [datetime.datetime.today() - datetime.timedelta(1)]
+        gameargs['date'] = datetime.datetime.today() - datetime.timedelta(1)
 
     gamelist = getgamelist(**gameargs)
     for game in gamelist:
-        game_id = game['id']
-        fetchedgame = getgame(game_id, SEASON)
-        
-        if fetchedgame is None: continue
-        processgame(SEASON, fetchedgame, game, conn)
-
+	processgame(SEASON, game, conn)
+	
 
 if __name__ == '__main__':
     main()
