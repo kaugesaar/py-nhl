@@ -347,9 +347,6 @@ def main():
 
     processschedule(SEASON, conn)
 
-    conn.execute('UPDATE logging.last_update SET update = NOW()');
-    conn.close()
-
 
 if __name__ == '__main__':
     main()
