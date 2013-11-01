@@ -12,6 +12,7 @@ import sys
 import getopt
 import calendar
 import os
+import logging
 
 
 def logmessage(message, **kwargs):
@@ -179,10 +180,14 @@ def processevent(game_id, event, conn):
 
 
 # Processes a game
-def processgame(season, game, gameinfo, conn):
+def processgame(season, game, conn):
     
-    game_id = gameinfo['id']
-    
+    game_id = game['id']
+    fetchedgame = getgame(game_id, season)
+
+    if fetchedgame is None:
+        return None
+
     # Clear out data
     query = 'DELETE FROM events_players WHERE game_id = %s'
     conn.execute(query, [game_id])
@@ -195,20 +200,20 @@ def processgame(season, game, gameinfo, conn):
 
     values = [season, \
         game_id, \
-        game['awayteamid'], \
-        game['hometeamid'], \
-        gameinfo['date'], \
-        gameinfo['hts'], \
-        gameinfo['ats'], \
-        gameinfo['rl'], \
-        gameinfo['gcl'], \
-        gameinfo['gcll'], \
-        gameinfo['bs'], \
-        gameinfo['bsc'], \
-        gameinfo['gs']
+        fetchedgame['awayteamid'], \
+        fetchedgame['hometeamid'], \
+        game['date'], \
+        game['hts'], \
+        game['ats'], \
+        game['rl'], \
+        game['gcl'], \
+        game['gcll'], \
+        game['bs'], \
+        game['bsc'], \
+        game['gs']
     ]
 
-    for event in game['plays']['play']:
+    for event in fetchedgame['plays']['play']:
         processevent(game_id, event, conn)
 
 
@@ -292,13 +297,7 @@ def main():
 
     gamelist = getgamelist(**gameargs)
     for game in gamelist:
-        trans = conn.begin()
-        game_id = game['id']
-        fetchedgame = getgame(game_id, SEASON)
-        
-        if fetchedgame is None: continue
-        processgame(SEASON, fetchedgame, game, conn)
-        trans.commit()
+        processgame(SEASON, game, conn)
 
 
 if __name__ == '__main__':
