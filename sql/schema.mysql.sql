@@ -229,6 +229,7 @@ create table gamelogs_skaters (
     takeaways integer,
     faceoff_pct float,
     pp_toi float,
+    sh_toi float,
     toi float,
     primary key (player_id, game_id)
 ) engine = InnoDB;
