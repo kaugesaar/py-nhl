@@ -21,10 +21,13 @@ def usage():
 def logmessage(message, **kwargs):
     loglevel = kwargs['loglevel'] if 'loglevel' in kwargs else logging.INFO
 
-    logging.log(loglevel, message)
-
     if loglevel == logging.CRITICAL:
+        logger = logging.getLogger("stderr")
+        logger.log(loglevel, message)
         raise SystemExit
+    else:
+        logger = logging.getLogger("stdout")
+        logger.log(loglevel, message)
     
 
 # Replaces times w/ numeric times, etc
@@ -252,9 +255,25 @@ def main():
     if pwd == '': pwd = '.'
     config = configparser.ConfigParser()
     config.readfp(open('%s/py-nhl.ini' % pwd))
+    
+    formatter = logging.Formatter('%(levelname)s | %(asctime)s | %(message)s', datefmt='%m/%d/%Y %I:%M %p')
 
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s:%(levelname)s:%(message)s', datefmt='%m/%d/%Y %I:%M %p')
+    s1 = logging.StreamHandler(stream=sys.stdout)
+    s1.setLevel(logging.DEBUG)
+    s1.setFormatter(formatter)
 
+    s2 = logging.StreamHandler(stream=sys.stderr)
+    s2.setLevel(logging.DEBUG)
+    s2.setFormatter(formatter)
+
+    stdout = logging.getLogger("stdout")
+    stderr = logging.getLogger("stderr")
+    stdout.addHandler(s1)
+    stderr.addHandler(s2)
+
+    stdout.setLevel(logging.DEBUG)
+    stderr.setLevel(logging.DEBUG)
+    
     SEASON = False
     VIEWS  = {
         'S': {
