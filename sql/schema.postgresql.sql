@@ -1,4 +1,14 @@
+-- drop table if exists nhl.players cascade;
 -- drop table if exists nhl.games cascade;
+-- drop table if exists nhl.stats_skaters_summary;
+-- drop table if exists nhl.stats_skaters_summary;
+-- drop table if exists nhl.stats_skaters_timeonice;
+-- drop table if exists nhl.stats_skaters_faceoff;
+-- drop table if exists nhl.stats_skaters_points;
+-- drop table if exists nhl.stats_goalies_summary;
+-- drop table if exists nhl.stats_goalies_special;
+-- drop table if exists nhl.gamelogs_skaters;
+-- drop table if exists nhl.gamelogs_goalies;
 -- drop table if exists nhl.events cascade;
 -- drop table if exists nhl.events_players;
 -- drop table if exists nhl.events_penaltybox;
