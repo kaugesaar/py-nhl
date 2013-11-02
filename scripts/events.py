@@ -240,7 +240,7 @@ def main():
     gameargs = {}
 
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "s:y:m:d:g:", ["season=", "year=", "month=", "day=", "game="])
+        opts, args = getopt.getopt(sys.argv[1:], "s:y:m:d:g:", ["season=", "year=", "month=", "day=", "game_id="])
     except getopt.GetoptError as e:
         usage()
 
@@ -249,7 +249,7 @@ def main():
         elif o in ('-m', '--month'): MONTH = int(a)
         elif o in ('-d', '--day'): DAY = int(a)
         elif o in ('-s', '--season'): SEASON = int(a)
-        elif o in ('-g', '--game'): GAME_ID = int(a)
+        elif o in ('-g', '--game_id'): GAME_ID = int(a)
 
     if SEASON is False:
         usage()
