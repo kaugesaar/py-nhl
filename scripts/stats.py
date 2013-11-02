@@ -167,13 +167,14 @@ def processschedule(season, conn):
 
             query = 'DELETE FROM nhl.gamelogs_goalies WHERE game_id = %s'
             conn.execute(query, [game_id])
-
-            query = 'DELETE FROM nhl.games WHERE season = %s AND game_id = %s'
-            conn.execute(query, [season, game_id])
             
-            params = [game_id, season, date, visitor, home, visitor_score, home_score, overtime, shootout, attendance]
-            query = 'INSERT INTO nhl.games VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'
-            conn.execute(query, params)
+            query = 'SELECT * FROM nhl.games WHERE season = %s AND game_id = %s'
+            rows = conn.execute(query, [season, game_id]).fetchall()
+
+            if len(rows) == 0:
+                params = [game_id, season, date, visitor, home, visitor_score, home_score, overtime, shootout, attendance]
+                query = 'INSERT INTO nhl.games VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'
+                conn.execute(query, params)
             
             processbox(game_id, conn)
 

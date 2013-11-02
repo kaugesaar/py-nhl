@@ -33,50 +33,31 @@ def usage():
 
 
 # Returns list of games
-def getgamelist(**kwargs):
-    months = []
-    games = []
-    dates = []
-
-    if 'date' in kwargs:
-        dates.append(kwargs['date'])
+def getgamelist(conn, **kwargs):
+    clauses = []
+    params  = []
+    
+    if 'game_id' in kwargs:
+        clauses.append('game_id = %s')
+        params.append(kwargs['game_id'])
     elif 'year' in kwargs:
-        year = kwargs['year']
+        clauses.append('EXTRACT(YEAR FROM game_date) = %s')
+        params.append(kwargs['year'])
         if 'month' in kwargs:
-            months.append(kwargs['month'])
-        else:
-            for month in range(1,13):
-                months.append(month)
+            clauses.append('EXTRACT(MONTH FROM game_date) = %s')
+            params.append(kwargs['month'])
+        if 'day' in kwargs:
+            clauses.append('EXTRACT(DAY FROM game_date) = %s')
+            params.append(kwargs['day'])
+    elif 'date' in kwargs:
+        clauses.append('game_date = %s')
+        params.append(kwargs['date'])
 
-        for month in months:
-            url = 'http://www.nhl.com/ice/ajax/gamecalendarjson.htm?month=%d&year=%d' % (month, year)
-            res = fetchurl(url)
-            gamelist = json.loads(res)
+    if len(clauses) == 0:
+        return []
 
-            for date in gamelist['gameDates']:
-                if date['n'] > 0:
-                    gamedate = datetime.datetime.strptime(date['gd'], '%m/%d/%Y')
-                    if 'day' in kwargs and gamedate.day != kwargs['day']: continue
-                    dates.append(gamedate)
-
-    for date in dates:
-        gamelisturl = 'http://www.nhl.com/ice/ajax/GCScoreboardJS?today=%s' % date.strftime("%m/%d/%Y")
-        try:
-            gamelistraw = fetchurl(gamelisturl)
-        
-            if (len(gamelistraw) == 0): return []
-        
-            # HACK ALERT substring out the call to the javascript method loadScoreboard() to get raw JSON
-            gamelistraw = gamelistraw[15:-1]
-            gamelist = json.loads(gamelistraw)['games']
-        except:
-            gamelist = []
-
-        for game in gamelist:
-            game['date'] = date # Keep track of this
-            games.append(game)
-
-    return games
+    query = 'SELECT game_id FROM nhl.games WHERE %s' % (' AND '.join(clauses))
+    return [row['game_id'] for row in conn.execute(query, params).fetchall()]
 
 
 # Grabs a URL
@@ -84,7 +65,7 @@ def fetchurl(url):
     try:
         print(url)
         res = urllib.request.urlopen(url)
-        return res.read()
+        return res.read().decode("utf-8")
     except:
         return None
 
@@ -143,8 +124,8 @@ def processevent(game_id, event, conn):
         None if 'desc' not in event else event['desc'],
         event['pid'] if 'pid' in event else None,
         event['teamid'],
-        event['xcoord'],
-        event['ycoord'],
+        None if 'xcoord' not in event else event['xcoord'],
+        None if 'ycoord' not in event else event['ycoord'],
         event['video'] if 'video' in event else None,
         event['altVideo'] if 'altVideo' in event else None,
         event['hs'],
@@ -180,12 +161,12 @@ def processevent(game_id, event, conn):
 
 
 # Processes a game
-def processgame(season, game, conn):
-    
-    game_id = game['id']
-    fetchedgame = getgame(game_id, season)
+def processgame(season, game_id, conn):
+    game = getgame(game_id, season)
 
-    if fetchedgame is None:
+    if game is None or \
+        'plays' not in game or \
+        'play' not in game['plays']:
         return None
 
     # Clear out data
@@ -198,22 +179,7 @@ def processgame(season, game, conn):
     query = 'DELETE FROM events WHERE game_id = %s'
     conn.execute(query, [game_id])
 
-    values = [season, \
-        game_id, \
-        fetchedgame['awayteamid'], \
-        fetchedgame['hometeamid'], \
-        game['date'], \
-        game['hts'], \
-        game['ats'], \
-        game['rl'], \
-        game['gcl'], \
-        game['gcll'], \
-        game['bs'], \
-        game['bsc'], \
-        game['gs']
-    ]
-
-    for event in fetchedgame['plays']['play']:
+    for event in game['plays']['play']:
         processevent(game_id, event, conn)
 
 
@@ -266,14 +232,15 @@ def main():
 
     if SCHEMA: conn.execute('SET search_path TO %s' % SCHEMA)
     
-    SEASON = False
-    YEAR = False
-    MONTH = False
-    DAY = False
+    SEASON   = False
+    YEAR     = False
+    MONTH    = False
+    DAY      = False
+    GAME_ID  = False
     gameargs = {}
 
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "s:y:m:d:", ["season=", "year=", "month=", "day="])
+        opts, args = getopt.getopt(sys.argv[1:], "s:y:m:d:g:", ["season=", "year=", "month=", "day=", "game="])
     except getopt.GetoptError as e:
         usage()
 
@@ -282,10 +249,14 @@ def main():
         elif o in ('-m', '--month'): MONTH = int(a)
         elif o in ('-d', '--day'): DAY = int(a)
         elif o in ('-s', '--season'): SEASON = int(a)
+        elif o in ('-g', '--game'): GAME_ID = int(a)
 
-    if SEASON is False: usage()
-    
-    if YEAR:
+    if SEASON is False:
+        usage()
+
+    if GAME_ID:
+        gameargs['game_id'] = GAME_ID
+    elif YEAR:
         gameargs['year'] = YEAR
         if MONTH:
             gameargs['month'] = MONTH
@@ -295,9 +266,8 @@ def main():
         # Just yesterday!
         gameargs['date'] = datetime.datetime.today() - datetime.timedelta(1)
 
-    gamelist = getgamelist(**gameargs)
-    for game in gamelist:
-        processgame(SEASON, game, conn)
+    for game_id in getgamelist(conn, **gameargs):
+        processgame(SEASON, game_id, conn)
 
 
 if __name__ == '__main__':
