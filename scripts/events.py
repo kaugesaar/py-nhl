@@ -33,25 +33,22 @@ def usage():
 
 
 # Returns list of games
-def getgamelist(conn, **kwargs):
-    clauses = []
-    params  = []
+def getgamelist(season, conn, **kwargs):
+    clauses = ['season = %s']
+    params  = [season]
     
     if 'game_id' in kwargs:
         clauses.append('game_id = %s')
         params.append(kwargs['game_id'])
-    elif 'year' in kwargs:
-        clauses.append('EXTRACT(YEAR FROM game_date) = %s')
-        params.append(kwargs['year'])
-        if 'month' in kwargs:
-            clauses.append('EXTRACT(MONTH FROM game_date) = %s')
-            params.append(kwargs['month'])
+    elif 'month' in kwargs:
+        clauses.append('EXTRACT(MONTH FROM game_date) = %s')
+        params.append(kwargs['month'])
         if 'day' in kwargs:
             clauses.append('EXTRACT(DAY FROM game_date) = %s')
             params.append(kwargs['day'])
-    elif 'date' in kwargs:
+    elif 'game_date' in kwargs:
         clauses.append('game_date = %s')
-        params.append(kwargs['date'])
+        params.append(kwargs['game_date'])
 
     if len(clauses) == 0:
         return []
@@ -63,7 +60,7 @@ def getgamelist(conn, **kwargs):
 # Grabs a URL
 def fetchurl(url):
     try:
-        print(url)
+        logmessage('fetching %s' % url)
         res = urllib.request.urlopen(url)
         return res.read().decode("utf-8")
     except:
@@ -233,7 +230,6 @@ def main():
     if SCHEMA: conn.execute('SET search_path TO %s' % SCHEMA)
     
     SEASON   = False
-    YEAR     = False
     MONTH    = False
     DAY      = False
     GAME_ID  = False
@@ -256,17 +252,15 @@ def main():
 
     if GAME_ID:
         gameargs['game_id'] = GAME_ID
-    elif YEAR:
-        gameargs['year'] = YEAR
-        if MONTH:
-            gameargs['month'] = MONTH
-            if DAY:
-                gameargs['day'] = DAY
+    elif MONTH:
+        gameargs['month'] = MONTH
+        if DAY:
+            gameargs['day'] = DAY
     else:
         # Just yesterday!
-        gameargs['date'] = datetime.datetime.today() - datetime.timedelta(1)
+        gameargs['game_date'] = (datetime.datetime.today() - datetime.timedelta(1)).date()
 
-    for game_id in getgamelist(conn, **gameargs):
+    for game_id in getgamelist(SEASON, conn, **gameargs):
         processgame(SEASON, game_id, conn)
 
 
