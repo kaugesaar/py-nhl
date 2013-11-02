@@ -230,13 +230,14 @@ def main():
     if SCHEMA: conn.execute('SET search_path TO %s' % SCHEMA)
     
     SEASON   = False
+    DO_FULL  = False
     MONTH    = False
     DAY      = False
     GAME_ID  = False
     gameargs = {}
 
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "s:y:m:d:g:", ["season=", "year=", "month=", "day=", "game_id="])
+        opts, args = getopt.getopt(sys.argv[1:], "s:y:m:d:g:f", ["season=", "year=", "month=", "day=", "game_id=","full"])
     except getopt.GetoptError as e:
         usage()
 
@@ -246,6 +247,7 @@ def main():
         elif o in ('-d', '--day'): DAY = int(a)
         elif o in ('-s', '--season'): SEASON = int(a)
         elif o in ('-g', '--game_id'): GAME_ID = int(a)
+        elif o in ('-f', '--full'): DO_FULL = True
 
     if SEASON is False:
         usage()
@@ -256,7 +258,7 @@ def main():
         gameargs['month'] = MONTH
         if DAY:
             gameargs['day'] = DAY
-    else:
+    elif not DO_FULL:
         # Just yesterday!
         gameargs['game_date'] = (datetime.datetime.today() - datetime.timedelta(1)).date()
 
