@@ -21,14 +21,16 @@ def usage():
 def logmessage(message, **kwargs):
     loglevel = kwargs['loglevel'] if 'loglevel' in kwargs else logging.INFO
 
-    if loglevel == logging.CRITICAL:
+    if loglevel in [logging.CRITICAL, logging.ERROR]:
         logger = logging.getLogger("stderr")
         logger.log(loglevel, message)
-        raise SystemExit
     else:
         logger = logging.getLogger("stdout")
         logger.log(loglevel, message)
-    
+
+    if loglevel == logging.CRITICAL:
+        raise SystemExit
+
 
 # Replaces times w/ numeric times, etc
 def fixvalues(row):
@@ -46,6 +48,16 @@ def fixvalues(row):
     return values
 
 
+# Returns a player ID for a player name
+def get_player_id(player_name, conn):
+    query = 'SELECT player_id FROM nhl.players WHERE upper(player_name) = %s'
+    row = conn.execute(query, [player_name]).fetchone()
+    if not row:
+        logmessage('Cannot get player_id from player name %s' % player_name, loglevel=logging.ERROR)
+        return None
+    return row['player_id']
+
+
 # Grabs a URL and returns a BeautifulSoup object
 def fetchsoup(url, **kwargs):
     try:
@@ -61,6 +73,7 @@ def fetchsoup(url, **kwargs):
         return None
 
 
+# Processes box scores
 def processbox(game_id, conn):
     url = 'http://www.nhl.com/gamecenter/boxscore?id=%s' % game_id
     soup = fetchsoup(url)
@@ -113,9 +126,63 @@ def processbox(game_id, conn):
                 query = 'INSERT INTO nhl.gamelogs_skaters VALUES(%s)' % (','.join(['%s'] * len(params)))
                 conn.execute(query, fixvalues(params))
 
+# Processes rosters
+def processroster(season, game_id, conn):
+    real_game_id = str(game_id)[4:]
+    url  = 'http://www.nhl.com/scores/htmlreports/%s/RO%s.HTM' % (season, real_game_id)
+    soup = fetchsoup(url)
+    game = {}
+    rosters = {}
+    tables = {}
 
-def processschedule(season, conn):
-    # roster http://www.nhl.com/scores/htmlreports/20112012/RO021230.HTM
+    try:
+        maintable   = soup.find_all('table', class_='tablewidth')[1]
+        teamtable   = maintable.find_all('tr', recursive=False)[2].find('table')
+        rostertable = maintable.find_all('tr', recursive=False)[3].find('table')
+
+        game['visitor'] = teamtable('td')[0].text
+        game['home']    = teamtable('td')[1].text
+    
+        tables['visitor_dressed'] = rostertable.find('tr').find_all('td', recursive=False)[0].find('table')
+        tables['home_dressed']    = rostertable.find('tr').find_all('td', recursive=False)[1].find('table')
+
+        tables['visitor_scratched'] = rostertable.find_all('tr', recursive=False)[3].find_all('table')[0]
+        tables['home_scratched']    = rostertable.find_all('tr', recursive=False)[3].find_all('table')[1]
+    except:
+        logmessage('Cannot parse roster report from %s' % url, loglevel=logging.ERROR)
+        return None
+
+    for key in ['visitor', 'home']:
+        rosters[key] = {'dressed': [], 'scratched': []}
+
+        for status in rosters[key].keys():
+            table = tables['%s_%s' % (key, status)]
+            for row in table.find_all('tr'):
+                cells = row.find_all('td')
+                if len(cells) == 2:
+                    # Team
+                    visitor = cells[0].text
+                    home = cells[1].text
+                if len(cells) == 3:
+                    # Player
+                    jersey, pos, player_name = [cell.text for cell in cells]
+                    if player_name == 'Name' or not jersey.isdigit(): continue
+                    player_id = get_player_id(player_name.replace('(C)', '').replace('(A)', '').strip(), conn)
+                    rosters[key][status].append({'player_id': player_id, 'player_name': player_name})
+    
+    query = 'DELETE FROM nhl.games_rosters WHERE game_id = %s'
+    conn.execute(query, [game_id])
+    
+    for team, roster in rosters.items():
+        for status, players in roster.items():
+            for player in players:
+                if player['player_id'] is None: continue
+                query = 'INSERT INTO nhl.games_rosters (game_id, team, status, player_id) VALUES(%s, %s, %s, %s)'
+                params = [game_id, game[team], status, player['player_id']]
+                conn.execute(query, params)
+
+
+def processschedule(season, do_full, conn):
     # summary http://www.nhl.com/scores/htmlreports/20112012/GS021230.HTM
     # events http://www.nhl.com/scores/htmlreports/20112012/ES021230.HTM
     # faceoffs http://www.nhl.com/scores/htmlreports/20112012/FC021230.HTM
@@ -130,7 +197,7 @@ def processschedule(season, conn):
 
     try:
         div = soup.find('div', 'pages')
-        maxpage = int(urllib.parse.parse_qs(div.findAll('a')[-1]['href'])['pg'][0])
+        maxpage = int(urllib.parse.parse_qs(div.find_all('a')[-1]['href'])['pg'][0])
     except:
         maxpage = 1
     
@@ -139,8 +206,8 @@ def processschedule(season, conn):
         soup = fetchsoup(url)
 
         table = soup.find('table', class_='stats')
-        for row in table.find('tbody').findAll('tr'):
-            values = [cell for cell in row.findAll('td')]
+        for row in table.find('tbody').find_all('tr'):
+            values = [cell for cell in row.find_all('td')]
         
             try:
                 anchor = values[0].find('a')
@@ -176,16 +243,21 @@ def processschedule(season, conn):
                 query = 'INSERT INTO nhl.games VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'
                 conn.execute(query, params)
             
-            processbox(game_id, conn)
+            diff = datetime.datetime.today().date() - date
+
+            # Only process games in last five days or all if set to full
+            if do_full or diff.days <= 5:
+                processbox(game_id, conn)
+                processroster(season, game_id, conn)
 
 
 def processview(soup, position, view, tablename, season, conn):
     table     = soup.find('table', 'data')
-    tablerows = table.find('tbody').findAll('tr')
+    tablerows = table.find('tbody').find_all('tr')
     view      = view.lower();
     
     for row in tablerows:
-        cellvalues = row.findAll('td')
+        cellvalues = row.find_all('td')
         try:
             player_id = re.search('=(\d+)$', cellvalues[1].find('a')['href']).groups()[0]
         except:
@@ -275,6 +347,7 @@ def main():
     stdout.setLevel(logging.DEBUG)
     stderr.setLevel(logging.DEBUG)
     
+    DO_FULL = False
     SEASON = False
     VIEWS  = {
         'S': {
@@ -290,10 +363,11 @@ def main():
         }
     }
     
-    opts, args = getopt.getopt(sys.argv[1:], "s:", ["season="])
+    opts, args = getopt.getopt(sys.argv[1:], "s:f", ["season=", "full"])
 
     for o, a in opts:
         if o in ('-s', '--season'): SEASON = int(a)
+        elif o in ('-f', '--full'): DO_FULL = True
 
     if SEASON is False:
         logmessage('Season not passed', loglevel=logging.CRITICAL)
@@ -334,7 +408,7 @@ def main():
 
             try:
                 div = soup.find('div', 'pages')
-                maxpage = int(urllib.parse.parse_qs(div.findAll('a')[-1]['href'])['pg'][0])
+                maxpage = int(urllib.parse.parse_qs(div.find_all('a')[-1]['href'])['pg'][0])
             except:
                 maxpage = 1
 
@@ -346,7 +420,7 @@ def main():
                     continue
                 processview(soup, position, view, table, SEASON, conn)
 
-    processschedule(SEASON, conn)
+    processschedule(SEASON, DO_FULL, conn)
 
 
 if __name__ == '__main__':

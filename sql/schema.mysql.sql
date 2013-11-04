@@ -1,17 +1,18 @@
-drop table if exists games;
-drop table if exists teams;
-drop table if exists events;
-drop table if exists events_players;
-drop table if exists events_penaltybox;
-drop table if exists players;
-drop table if exists stats_skaters_summary;
-drop table if exists stats_skaters_timeonice;
-drop table if exists stats_skaters_faceoff;
-drop table if exists stats_skaters_points;
-drop table if exists stats_goalies_summary;
-drop table if exists stats_goalies_special;
-drop table if exists gamelogs_skaters;
-drop table if exists gamelogs_goalies;
+-- drop table if exists games;
+-- drop table if exists teams;
+-- drop table if exists events;
+-- drop table if exists events_players;
+-- drop table if exists events_penaltybox;
+-- drop table if exists players;
+-- drop table if exists stats_skaters_summary;
+-- drop table if exists stats_skaters_timeonice;
+-- drop table if exists stats_skaters_faceoff;
+-- drop table if exists stats_skaters_points;
+-- drop table if exists stats_goalies_summary;
+-- drop table if exists stats_goalies_special;
+-- drop table if exists gamelogs_skaters;
+-- drop table if exists gamelogs_goalies;
+-- drop table if exists games_rosters;
 
 /* USED BY events.py */
 
@@ -249,4 +250,11 @@ create table gamelogs_goalies (
     save_pct float,
     pim integer,
     toi float
+) engine = InnoDB;
+
+create table games_rosters (
+    game_id integer not null references nhl.games(game_id),
+    team text,
+    status text,
+    player_id integer not null
 ) engine = InnoDB;

@@ -9,6 +9,7 @@
 -- drop table if exists nhl.stats_goalies_special;
 -- drop table if exists nhl.gamelogs_skaters;
 -- drop table if exists nhl.gamelogs_goalies;
+-- drop table if exists nhl.games_rosters;
 -- drop table if exists nhl.events cascade;
 -- drop table if exists nhl.events_players;
 -- drop table if exists nhl.events_penaltybox;
@@ -203,6 +204,13 @@ create table nhl.gamelogs_goalies (
     save_pct numeric,
     pim integer,
     toi numeric
+);
+
+create table nhl.games_rosters (
+    game_id integer not null references nhl.games(game_id),
+    team text,
+    status text,
+    player_id integer not null
 );
 
 /* USED BY events.py */
