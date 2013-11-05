@@ -182,6 +182,67 @@ def processroster(season, game_id, conn):
                 conn.execute(query, params)
 
 
+# Processes faceoff logs
+def processfaceoff(season, game_id, conn):
+    # A big old bunch of HTML parsing ahead, blegh
+    real_game_id = str(game_id)[4:]
+    url = 'http://www.nhl.com/scores/htmlreports/%s/FC%s.HTM' % (season, real_game_id)
+    soup = fetchsoup(url)
+    faceoffs = {}
+    
+    # TODO need to fix player names. Faceoff report uses MICHAEL BOURNIVAL instead of MICHAËL BOURNIVAL, etc
+    # Will miss some because of this. In 2013/14: Bournival, Barch (Krys instead of Krystofer)
+    
+    rows = soup.find_all('tr')
+    for row in rows:
+        cells = row.find_all('td')
+        if len(cells) == 7:
+            # A new player
+            player_name = cells[2].text
+            if player_name.find('Player') >= 0: continue
+            inf = [s.strip() for s in player_name.split(',')]
+            player_id = get_player_id('%s %s' % (inf[1], inf[0]), conn)
+            
+            if player_id:
+                if player_id not in faceoffs: faceoffs[player_id] = {}
+            else:
+                continue
+            
+        elif len(cells) == 8:
+            # A stat row
+            vs, o, d, n, t = [c.text.strip() for c in cells[3:8]]
+            vs = re.sub('\d+', '', vs.replace('vs.', '').replace(' C ', '').replace(' L ', '').replace(' R ', '').replace(' D ', '').strip())
+            inf = [s.strip() for s in vs.split(',')]
+            opp = get_player_id('%s %s' % (inf[1], inf[0]), conn)
+
+            if player_id is None or opp is None: continue
+            
+            faceoffs[player_id][opp] = {
+                'offensive': o.split('/')[0].strip().split('-'),
+                'defensive': d.split('/')[0].strip().split('-'),
+                'neutral': n.split('/')[0].strip().split('-'),
+                'total': t.split('/')[0].strip().split('-')
+            }
+    
+    if (len(faceoffs.keys())) == 0:
+        logmessage('Cannot parse faceoff report from %s' % url, loglevel=logging.ERROR)
+        return None
+    
+    query = 'DELETE FROM nhl.games_faceoffs WHERE game_id = %s'
+    conn.execute(query, [game_id])
+    for player_id, records in faceoffs.items():
+        for opponent_id, draws in records.items():
+            for zone, totals in draws.items():
+                if len(totals) == 1:
+                    wins = 0
+                    attempts = 0
+                else:
+                    wins, attempts = totals
+                query = 'INSERT INTO nhl.games_faceoffs (game_id, player_id, versus, zone, wins, attempts) VALUES(%s, %s, %s, %s, %s, %s)'
+                params = [game_id, player_id, opponent_id, zone, wins, attempts]
+                conn.execute(query, params)
+
+
 def processschedule(season, do_full, conn):
     # summary http://www.nhl.com/scores/htmlreports/20112012/GS021230.HTM
     # events http://www.nhl.com/scores/htmlreports/20112012/ES021230.HTM
@@ -249,6 +310,7 @@ def processschedule(season, do_full, conn):
             if do_full or diff.days <= 5:
                 processbox(game_id, conn)
                 processroster(season, game_id, conn)
+                processfaceoff(season, game_id, conn)
 
 
 def processview(soup, position, view, tablename, season, conn):
@@ -391,8 +453,8 @@ def main():
         conn = db.connect()
         
         if SCHEMA: conn.execute('SET search_path TO %s' % SCHEMA)
-    except:
-        logmessage('Cannot connect to database', loglevel=logging.CRITICAL)
+    except Exception as e:
+        logmessage('Cannot connect to database: %s' % e, loglevel=logging.CRITICAL)
 
     for position, views in VIEWS.items():
         for view in sorted(views.keys()):
@@ -405,7 +467,6 @@ def main():
             if not soup: continue
 
             # Get the max # of pages
-
             try:
                 div = soup.find('div', 'pages')
                 maxpage = int(urllib.parse.parse_qs(div.find_all('a')[-1]['href'])['pg'][0])

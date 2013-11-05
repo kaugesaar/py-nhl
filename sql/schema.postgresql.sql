@@ -9,7 +9,10 @@
 -- drop table if exists nhl.stats_goalies_special;
 -- drop table if exists nhl.gamelogs_skaters;
 -- drop table if exists nhl.gamelogs_goalies;
+
 -- drop table if exists nhl.games_rosters;
+-- drop table if exists nhl.games_faceoffs;
+
 -- drop table if exists nhl.events cascade;
 -- drop table if exists nhl.events_players;
 -- drop table if exists nhl.events_penaltybox;
@@ -170,7 +173,7 @@ create table nhl.stats_goalies_special (
 
 create table nhl.gamelogs_skaters (
     game_id integer not null references nhl.games(game_id),
-    player_id integer,
+    player_id integer references nhl.players(player_id),
     team text,
     pos text,
     g integer,
@@ -191,7 +194,7 @@ create table nhl.gamelogs_skaters (
 
 create table nhl.gamelogs_goalies (
     game_id integer not null references nhl.games(game_id),
-    player_id integer,
+    player_id integer references nhl.players(player_id),
     team text,
     evenstrength_saves integer,
     evenstrength_att integer,
@@ -208,9 +211,18 @@ create table nhl.gamelogs_goalies (
 
 create table nhl.games_rosters (
     game_id integer not null references nhl.games(game_id),
+    player_id integer not null references nhl.players(player_id),
     team text,
-    status text,
-    player_id integer not null
+    status text
+);
+
+create table nhl.games_faceoffs (
+    game_id integer not null references nhl.games(game_id),
+    player_id integer not null references nhl.players(player_id),
+    versus integer not null references nhl.players(player_id),
+    zone text,
+    wins integer,
+    attempts integer
 );
 
 /* USED BY events.py */
