@@ -21,4 +21,6 @@ INSERT INTO players_names VALUES
     (8469500, 'MICHAEL CAMMALLERI'),
     (8471269, 'NICKLAS GROSSMAN'), -- Just a mispelling w/o the extra n!
     (8467899, 'MARTIN HAVLAT'),
+    (8475739, 'MICHAEL BOURNIVAL'),
+    (8467428, 'KRYS BARCH'),
     (8470640, 'MATT CARLE');

@@ -50,8 +50,8 @@ def fixvalues(row):
 
 # Returns a player ID for a player name
 def get_player_id(player_name, conn):
-    query = 'SELECT player_id FROM nhl.players WHERE upper(player_name) = %s'
-    row = conn.execute(query, [player_name]).fetchone()
+    query = 'SELECT DISTINCT player_id FROM players p LEFT JOIN players_names n USING (player_id) WHERE UPPER(p.player_name) = %s OR UPPER(n.player_name) = %s'
+    row = conn.execute(query, [player_name, player_name]).fetchone()
     if not row:
         logmessage('Cannot get player_id from player name %s' % player_name, loglevel=logging.ERROR)
         return None
@@ -109,10 +109,10 @@ def processbox(game_id, conn):
                     # skip goalies with no TOI
                     continue
 
-                query = 'DELETE FROM nhl.gamelogs_goalies WHERE player_id = %s AND game_id = %s'
+                query = 'DELETE FROM gamelogs_goalies WHERE player_id = %s AND game_id = %s'
                 conn.execute(query, [player_id, game_id])
             
-                query = 'INSERT INTO nhl.gamelogs_goalies VALUES(%s)' % (','.join(['%s'] * len(params)))
+                query = 'INSERT INTO gamelogs_goalies VALUES(%s)' % (','.join(['%s'] * len(params)))
                 conn.execute(query, fixvalues(params))
             
             if playertype == 'skaters':
@@ -120,10 +120,10 @@ def processbox(game_id, conn):
                 if params[14].find('%') >= 0:
                     params[14] = int(params[14].replace('%', '')) / 100.0 # FO %
 
-                query = 'DELETE FROM nhl.gamelogs_skaters WHERE player_id = %s AND game_id = %s'
+                query = 'DELETE FROM gamelogs_skaters WHERE player_id = %s AND game_id = %s'
                 conn.execute(query, [player_id, game_id])
             
-                query = 'INSERT INTO nhl.gamelogs_skaters VALUES(%s)' % (','.join(['%s'] * len(params)))
+                query = 'INSERT INTO gamelogs_skaters VALUES(%s)' % (','.join(['%s'] * len(params)))
                 conn.execute(query, fixvalues(params))
 
 # Processes rosters
@@ -170,14 +170,14 @@ def processroster(season, game_id, conn):
                     player_id = get_player_id(player_name.replace('(C)', '').replace('(A)', '').strip(), conn)
                     rosters[key][status].append({'player_id': player_id, 'player_name': player_name})
     
-    query = 'DELETE FROM nhl.games_rosters WHERE game_id = %s'
+    query = 'DELETE FROM games_rosters WHERE game_id = %s'
     conn.execute(query, [game_id])
     
     for team, roster in rosters.items():
         for status, players in roster.items():
             for player in players:
                 if player['player_id'] is None: continue
-                query = 'INSERT INTO nhl.games_rosters (game_id, team, status, player_id) VALUES(%s, %s, %s, %s)'
+                query = 'INSERT INTO games_rosters (game_id, team, status, player_id) VALUES(%s, %s, %s, %s)'
                 params = [game_id, game[team], status, player['player_id']]
                 conn.execute(query, params)
 
@@ -228,7 +228,7 @@ def processfaceoff(season, game_id, conn):
         logmessage('Cannot parse faceoff report from %s' % url, loglevel=logging.ERROR)
         return None
     
-    query = 'DELETE FROM nhl.games_faceoffs WHERE game_id = %s'
+    query = 'DELETE FROM games_faceoffs WHERE game_id = %s'
     conn.execute(query, [game_id])
     for player_id, records in faceoffs.items():
         for opponent_id, draws in records.items():
@@ -238,7 +238,7 @@ def processfaceoff(season, game_id, conn):
                     attempts = 0
                 else:
                     wins, attempts = totals
-                query = 'INSERT INTO nhl.games_faceoffs (game_id, player_id, versus, zone, wins, attempts) VALUES(%s, %s, %s, %s, %s, %s)'
+                query = 'INSERT INTO games_faceoffs (game_id, player_id, versus, zone, wins, attempts) VALUES(%s, %s, %s, %s, %s, %s)'
                 params = [game_id, player_id, opponent_id, zone, wins, attempts]
                 conn.execute(query, params)
 
@@ -246,12 +246,10 @@ def processfaceoff(season, game_id, conn):
 def processschedule(season, do_full, conn):
     # summary http://www.nhl.com/scores/htmlreports/20112012/GS021230.HTM
     # events http://www.nhl.com/scores/htmlreports/20112012/ES021230.HTM
-    # faceoffs http://www.nhl.com/scores/htmlreports/20112012/FC021230.HTM
     # play by play http://www.nhl.com/scores/htmlreports/20112012/PL021230.HTM
     # shots http://www.nhl.com/scores/htmlreports/20112012/SS021230.HTM
     # home TOI http://www.nhl.com/scores/htmlreports/20112012/TH021230.HTM
     # away TOI http://www.nhl.com/scores/htmlreports/20112012/TV021230.HTM
-    # box http://www.nhl.com/gamecenter/boxscore?id=2013010054
     
     url = 'http://www.nhl.com/ice/gamestats.htm?season=%s&gameType=2&team=&viewName=summary&pg=1' % season
     soup = fetchsoup(url)
@@ -290,18 +288,18 @@ def processschedule(season, do_full, conn):
         
             roster_url = 'http://www.nhl.com/scores/htmlreports/%s/RO%s.HTM' % (season, game_id)
 
-            query = 'DELETE FROM nhl.gamelogs_skaters WHERE game_id = %s'
+            query = 'DELETE FROM gamelogs_skaters WHERE game_id = %s'
             conn.execute(query, [game_id])
 
-            query = 'DELETE FROM nhl.gamelogs_goalies WHERE game_id = %s'
+            query = 'DELETE FROM gamelogs_goalies WHERE game_id = %s'
             conn.execute(query, [game_id])
             
-            query = 'SELECT * FROM nhl.games WHERE season = %s AND game_id = %s'
+            query = 'SELECT * FROM games WHERE season = %s AND game_id = %s'
             rows = conn.execute(query, [season, game_id]).fetchall()
 
             if len(rows) == 0:
                 params = [game_id, season, date, visitor, home, visitor_score, home_score, overtime, shootout, attendance]
-                query = 'INSERT INTO nhl.games VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'
+                query = 'INSERT INTO games VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'
                 conn.execute(query, params)
             
             diff = datetime.datetime.today().date() - date
