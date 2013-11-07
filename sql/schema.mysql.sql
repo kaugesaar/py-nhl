@@ -54,7 +54,7 @@ create table events (
     away_score integer,
     home_sog integer,
     away_sog integer,
-    time float,
+    time varchar(10),
     video_url varchar(255),
     altvideo_url varchar(255),
     goalie_id integer,

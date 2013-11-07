@@ -18,13 +18,15 @@ import logging
 def logmessage(message, **kwargs):
     loglevel = kwargs['loglevel'] if 'loglevel' in kwargs else logging.INFO
 
-    if loglevel == logging.CRITICAL:
+    if loglevel in [logging.CRITICAL, logging.ERROR]:
         logger = logging.getLogger("stderr")
         logger.log(loglevel, message)
-        raise SystemExit
     else:
         logger = logging.getLogger("stdout")
         logger.log(loglevel, message)
+
+    if loglevel == logging.CRITICAL:
+        raise SystemExit
 
 
 # Usage information
@@ -53,7 +55,7 @@ def getgamelist(season, conn, **kwargs):
     if len(clauses) == 0:
         return []
 
-    query = 'SELECT game_id FROM nhl.games WHERE %s' % (' AND '.join(clauses))
+    query = 'SELECT game_id FROM games WHERE %s' % (' AND '.join(clauses))
     return [row['game_id'] for row in conn.execute(query, params).fetchall()]
 
 
@@ -223,9 +225,8 @@ def main():
     try:
         db = sqlalchemy.create_engine(string)
         conn = db.connect()
-    except:
-        print('Cannot connect to database')
-        raise SystemExit
+    except Exception as e:
+        logmessage('Cannot connect to database: %s' % e, loglevel=logging.CRITICAL)
 
     if SCHEMA: conn.execute('SET search_path TO %s' % SCHEMA)
     
