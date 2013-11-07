@@ -2,6 +2,7 @@
 *
 * These are alternative player names used by NHL.com (different than the ones
 * stored in the players table). This is populated on a random basis as I find them.
+* mysql users: remove the SET call
 *
 */
 
@@ -11,7 +12,7 @@ DROP TABLE IF EXISTS players_names;
 
 CREATE TABLE players_names (
     player_id integer references nhl.players(player_id),
-    player_name text,
+    player_name varchar(255),
     primary key (player_id, player_name)
 );
 
@@ -38,4 +39,8 @@ INSERT INTO players_names VALUES
     (8471762, 'CHRIS VANDE VELDE'),
     (8471832, 'NICHOLAS DRAZENOVIC'),
     (8473927, 'BRADLEY MILLS'),
+    (8470366, 'MARTIN ST PIERRE'),
+    (8476856, 'MATT DUMBA'),
+    (8466378, 'MARTIN ST LOUIS'),
+    (8476856, 'MATHEW DUMBA'),
     (8470640, 'MATT CARLE');
