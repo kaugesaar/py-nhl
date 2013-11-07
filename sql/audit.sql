@@ -42,3 +42,12 @@ join nhl.games using (game_id)
 group by season
 order by season asc;
 
+\echo 'Events'
+select
+    season,
+    count(distinct game_id) c
+from nhl.events
+join nhl.games using (game_id)
+group by season
+order by season asc;
+
