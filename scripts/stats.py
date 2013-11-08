@@ -366,6 +366,7 @@ def processschedule(season, do_full, conn):
                 processbox(game_id, conn)
                 processroster(season, game_id, conn)
                 processfaceoff(season, game_id, conn)
+                processtoi(season, game_id, conn)
 
 
 def processview(soup, position, view, tablename, season, conn):
