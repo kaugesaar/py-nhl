@@ -14,6 +14,7 @@
 -- drop table if exists gamelogs_goalies;
 -- drop table if exists games_rosters;
 -- drop table if exists games_faceoffs;
+-- drop table if exists games_toi;
 
 /* USED BY events.py */
 
@@ -269,4 +270,17 @@ create table games_faceoffs (
     zone text,
     wins integer,
     attempts integer
+) engine = InnoDB;
+
+create table nhl.games_toi (
+    game_id integer not null references nhl.games(game_id),
+    player_id integer not null references nhl.players(player_id),
+    period integer,
+    shift integer,
+    start_elapsed float,
+    start_game float,
+    end_elapsed float,
+    end_game float,
+    duration float,
+    event text
 ) engine = InnoDB;

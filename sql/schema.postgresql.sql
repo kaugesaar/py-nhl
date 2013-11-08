@@ -1,3 +1,4 @@
+-- STATS
 -- drop table if exists nhl.players cascade;
 -- drop table if exists nhl.games cascade;
 -- drop table if exists nhl.stats_skaters_summary;
@@ -9,10 +10,10 @@
 -- drop table if exists nhl.stats_goalies_special;
 -- drop table if exists nhl.gamelogs_skaters;
 -- drop table if exists nhl.gamelogs_goalies;
-
 -- drop table if exists nhl.games_rosters;
 -- drop table if exists nhl.games_faceoffs;
-
+-- drop table if exists nhl.games_toi;
+-- EVENTS
 -- drop table if exists nhl.events cascade;
 -- drop table if exists nhl.events_players;
 -- drop table if exists nhl.events_penaltybox;
@@ -223,6 +224,19 @@ create table nhl.games_faceoffs (
     zone text,
     wins integer,
     attempts integer
+);
+
+create table nhl.games_toi (
+    game_id integer not null references nhl.games(game_id),
+    player_id integer not null references nhl.players(player_id),
+    period integer,
+    shift integer,
+    start_elapsed numeric,
+    start_game numeric,
+    end_elapsed numeric,
+    end_game numeric,
+    duration numeric,
+    event text
 );
 
 /* USED BY events.py */

@@ -1,5 +1,5 @@
 from pprint import pprint
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 import logging
 import re
@@ -30,6 +30,11 @@ def logmessage(message, **kwargs):
 
     if loglevel == logging.CRITICAL:
         raise SystemExit
+
+
+def flip_name(name):
+    inf = [s.strip() for s in name.split(',')]
+    return '%s %s' % (inf[1], inf[0])
 
 
 # Replaces times w/ numeric times, etc
@@ -190,8 +195,7 @@ def processfaceoff(season, game_id, conn):
     soup = fetchsoup(url)
     faceoffs = {}
     
-    # TODO need to fix player names. Faceoff report uses MICHAEL BOURNIVAL instead of MICHAËL BOURNIVAL, etc
-    # Will miss some because of this. In 2013/14: Bournival, Barch (Krys instead of Krystofer)
+    # TODO some better exception handling
     
     rows = soup.find_all('tr')
     for row in rows:
@@ -241,6 +245,59 @@ def processfaceoff(season, game_id, conn):
                 query = 'INSERT INTO games_faceoffs (game_id, player_id, versus, zone, wins, attempts) VALUES(%s, %s, %s, %s, %s, %s)'
                 params = [game_id, player_id, opponent_id, zone, wins, attempts]
                 conn.execute(query, params)
+
+
+# Time on ice
+def processtoi(season, game_id, conn):
+    real_game_id = str(game_id)[4:]
+    toi = {}
+    
+    for key in ['home', 'visitor']:
+        toi[key] = {}
+        url_key = 'H' if key == 'home' else 'V'
+        url = 'http://www.nhl.com/scores/htmlreports/%s/T%s%s.HTM' % (season, url_key, real_game_id)
+        soup = fetchsoup(url)
+        
+        if soup is None:
+            logmessage('Cannot fetch %s TOI report: %s' % (key, url))
+            return None
+        
+        for cell in soup('td', class_='playerHeading'):
+            player_name = flip_name(re.sub('\d+', '', cell.text))
+            player_id = get_player_id(player_name, conn)
+            toi[key][player_id] = []
+
+            parent = cell.parent
+            for row in parent.next_siblings:
+                if isinstance(row, Tag):
+                    cells = row.find_all('td', recursive=False)
+                    if len(cells) == 1:
+                        break
+                    elif cells[0].text.find('Shift #') == -1 and len(cells) == 6:
+                        shift = {
+                            'shift'         : cells[0].text,
+                            'period'        : 4 if cells[1].text == 'OT' else cells[1].text,
+                            'start_elapsed' : cells[2].text.split('/')[0].strip(),
+                            'start_game'    : cells[2].text.split('/')[1].strip(),
+                            'end_elapsed'   : cells[3].text.split('/')[0].strip(),
+                            'end_game'      : cells[3].text.split('/')[1].strip(),
+                            'duration'      : cells[4].text,
+                            'event'         : None if len(cells[5].text.strip()) == 0 else cells[5].text.strip()
+                        }
+                        toi[key][player_id].append(shift)
+
+    if len(toi['home'].keys()) == 0 or len(toi['visitor'].keys()) == 0:
+            logmessage('Cannot parse %s TOI report: %s' % (key, url))
+            return None
+
+    query = 'DELETE FROM games_toi WHERE game_id = %s'
+    conn.execute(query, [game_id])
+    for key, players in toi.items():
+        for player_id, shifts in players.items():
+            for shift in shifts:
+                params = [game_id, player_id, shift['period'], shift['shift'], shift['start_elapsed'], shift['start_game'], shift['end_elapsed'], shift['end_game'], shift['duration'], shift['event']]
+                query = 'INSERT INTO games_toi (game_id, player_id, period, shift, start_elapsed, start_game, end_elapsed, end_game, duration, event) VALUES(%s)' % ','.join(['%s'] * len(params))
+                conn.execute(query, fixvalues(params))
 
 
 def processschedule(season, do_full, conn):
