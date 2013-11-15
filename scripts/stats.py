@@ -345,12 +345,6 @@ def processschedule(season, do_full, conn):
         
             roster_url = 'http://www.nhl.com/scores/htmlreports/%s/RO%s.HTM' % (season, game_id)
 
-            query = 'DELETE FROM gamelogs_skaters WHERE game_id = %s'
-            conn.execute(query, [game_id])
-
-            query = 'DELETE FROM gamelogs_goalies WHERE game_id = %s'
-            conn.execute(query, [game_id])
-            
             query = 'SELECT * FROM games WHERE season = %s AND game_id = %s'
             rows = conn.execute(query, [season, game_id]).fetchall()
 
