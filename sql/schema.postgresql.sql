@@ -57,8 +57,10 @@ create table nhl.stats_skaters_summary (
     p integer,
     plusminus integer,
     pim integer,
-    pp integer,
-    sh integer,
+    ppg integer,
+    ppp integer,
+    shg integer,
+    shp integer,
     gw integer,
     ot integer,
     s integer,
@@ -288,3 +290,5 @@ create index idx_events_team_id on events(team_id);
 create index idx_events_player_id on events(player_id);
 create index idx_events_players_player_id on events_players(player_id);
 create index idx_events_penaltybox_player_id on events_penaltybox(player_id);
+create index idx_games_toi_combo on nhl.games_toi(game_id, period, shift);
+create index idx_games_toi_combo2 on nhl.games_toi(game_id, period, start_elapsed);
