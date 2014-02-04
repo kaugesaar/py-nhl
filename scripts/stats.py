@@ -65,9 +65,11 @@ def get_player_id(player_name, conn):
 
 # Grabs a URL and returns a BeautifulSoup object
 def fetchsoup(url, **kwargs):
+    timeout = kwargs['timeout'] if 'timeout' in kwargs else 30
+
     try:
         if 'verbose' in kwargs or True: logmessage('fetching %s' % url)
-        res = urllib.request.urlopen(url)
+        res = urllib.request.urlopen(url, timeout=timeout)
         return BeautifulSoup(res.read())
 
     except urllib.error.HTTPError as e:
@@ -294,6 +296,7 @@ def processtoi(season, game_id, conn):
     conn.execute(query, [game_id])
     for key, players in toi.items():
         for player_id, shifts in players.items():
+            if player_id is None: continue
             for shift in shifts:
                 params = [game_id, player_id, shift['period'], shift['shift'], shift['start_elapsed'], shift['start_game'], shift['end_elapsed'], shift['end_game'], shift['duration'], shift['event']]
                 query = 'INSERT INTO games_toi (game_id, player_id, period, shift, start_elapsed, start_game, end_elapsed, end_game, duration, event) VALUES(%s)' % ','.join(['%s'] * len(params))
