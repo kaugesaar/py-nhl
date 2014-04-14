@@ -3,6 +3,7 @@ begin;
 drop view if exists nhl.vw_skaters_summary;
 drop view if exists nhl.vw_faceoffs;
 drop view if exists nhl.vw_games_toi;
+drop view if exists nhl.vw_skaters_games;
 
 create view nhl.vw_skaters_summary as
 select
@@ -17,8 +18,10 @@ select
     s.p,
     s.plusminus,
     s.pim,
-    s.pp as ppg,
-    s.sh as shg,
+    s.ppp as ppp,
+    s.ppg as ppg,
+    s.shp as shp,
+    s.shg as shg,
     s.gw as gwg,
     s.ot as otg,
     s.s,
@@ -77,15 +80,52 @@ join nhl.games g using (game_id)
 join nhl.players p using (player_id)
 group by season, player_name, "zone";
 
+create view nhl.vw_skaters_games as
+select
+    season,
+    game_id,
+    game_date,
+    player_id,
+    player_name,
+    p.pos,
+    r.team = h.long as home,
+    r.team,
+    case when r.team = h.long then h.team_id else v.team_id end as team_id,
+    case when r.team = h.long then v.long else h.long end as opponent,
+    case when r.team = h.long then v.team_id else h.team_id end as opponent_team_id,
+    l.g,
+    l.a,
+    l.p,
+    l.plusminus,
+    l.pim,
+    l.shots,
+    l.hits,
+    l.blocks,
+    l.giveaways,
+    l.takeaways,
+    l.faceoff_pct,
+    l.pp_toi,
+    l.sh_toi,
+    l.toi - l.pp_toi - l.sh_toi as ev_toi,
+    l.toi
+from nhl.gamelogs_skaters l
+join nhl.games_rosters r using (game_id, player_id)
+join nhl.games g using (game_id)
+join nhl.players p using (player_id)
+join nhl.teams h on (g.home = h.team)
+join nhl.teams v on (g.visitor = v.team);
+
 create view nhl.vw_games_toi as
 select
     season,
     game_id,
+    game_date,
     player_id,
     player_name,
+    p.pos,
+    r.team = h.long as home,
     r.team,
     case when r.team = h.long then h.team_id else v.team_id end as team_id,
-    case when r.team = h.long then 'home' else 'visitor' end as teamtype,
     period,
     shift,
     start_elapsed,
