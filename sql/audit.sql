@@ -24,6 +24,15 @@ join nhl.games using (game_id)
 group by season
 order by season asc;
 
+\echo 'TOI'
+select
+    season,
+    count(distinct game_id) c
+from nhl.games_toi
+join nhl.games using (game_id)
+group by season
+order by season asc;
+
 \echo 'Game logs - goalies'
 select
     season,
