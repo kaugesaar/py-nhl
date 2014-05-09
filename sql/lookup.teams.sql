@@ -10,7 +10,7 @@ SET search_path to nhl;
 DROP TABLE IF EXISTS teams;
 
 CREATE TABLE teams (
-    team varchar(255) NOT NULL primary key,
+    team text,
     `long` text,
     abbrev text,
     team_id integer unique,
