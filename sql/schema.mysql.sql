@@ -1,82 +1,52 @@
--- drop table if exists games;
--- drop table if exists teams;
--- drop table if exists events;
--- drop table if exists events_players;
--- drop table if exists events_penaltybox;
--- drop table if exists players;
--- drop table if exists stats_skaters_summary;
--- drop table if exists stats_skaters_timeonice;
--- drop table if exists stats_skaters_faceoff;
--- drop table if exists stats_skaters_points;
--- drop table if exists stats_goalies_summary;
--- drop table if exists stats_goalies_special;
--- drop table if exists gamelogs_skaters;
--- drop table if exists gamelogs_goalies;
--- drop table if exists games_rosters;
--- drop table if exists games_faceoffs;
--- drop table if exists games_toi;
+-- STATS AND REPORTS
+drop table if exists players cascade;
+drop table if exists games cascade;
+drop table if exists teams cascade;
+drop table if exists alignment cascade;
+drop table if exists players_names;
+drop table if exists stats_skaters_summary;
+drop table if exists stats_skaters_timeonice;
+drop table if exists stats_skaters_faceoff;
+drop table if exists stats_skaters_points;
+drop table if exists stats_goalies_summary;
+drop table if exists stats_goalies_special;
+drop table if exists gamelogs_skaters;
+drop table if exists gamelogs_goalies;
+drop table if exists games_rosters;
+drop table if exists games_faceoffs;
+drop table if exists games_toi;
+drop table if exists games_plays cascade;
+drop table if exists games_plays_players;
+-- ICE TRACKER EVENTS
+drop table if exists games_events_players;
+drop table if exists games_events_penaltybox;
+drop table if exists games_events;
 
-/* USED BY events.py */
+-- LOOKUPS
+
+create table players_names (
+    player_id integer, -- references players(player_id),
+    player_name varchar(255),
+    primary key (player_id, player_name)
+) engine = InnoDB CHARSET=utf8;
 
 create table teams (
-    team_id integer,
-    name varchar(35),
-    nickname varchar(35),
-    primary key(team_id)
-) engine = InnoDB;
+    team varchar(100) primary key,
+    longname varchar(100),
+    abbrev varchar(5),
+    team_id integer unique,
+    nickname varchar(100)
+) engine = InnoDB CHARSET=utf8;
 
-create table games (
-    game_id integer primary key,
-    season integer,
-    game_date date,
-    visitor text,
-    home text,
-    visitor_score integer,
-    home_score integer,
-    overtime boolean,
-    shootout boolean,
-    attendance integer
-) engine = InnoDB;
+create table alignment (
+    season varchar(10),
+    team varchar(100) references teams(team),
+    division varchar(100),
+    conference varchar(100),
+    primary key (season, team, division, conference)
+) engine = InnoDB CHARSET=utf8;
 
-create table events (
-    event_id integer,
-    formal_event_id varchar(15),
-    game_id integer references games(game_id),
-    period integer,
-    strength integer,
-    type varchar(15),
-    shot_type varchar(15),
-    description varchar(255),
-    player_id integer,
-    team_id integer references teams(team_id),
-    xcoord integer,
-    ycoord integer,
-    home_score integer,
-    away_score integer,
-    home_sog integer,
-    away_sog integer,
-    time varchar(10),
-    video_url varchar(255),
-    altvideo_url varchar(255),
-    goalie_id integer,
-    primary key (game_id, event_id)
-) engine = InnoDB;
-
-create table events_players (
-    game_id integer,
-    event_id integer,
-    which varchar(15),
-    player_id integer
-) engine = InnoDB;
-
-create table events_penaltybox (
-    game_id integer,
-    event_id integer,
-    which varchar(15),
-    player_id integer
-) engine = InnoDB;
-
-/* USED BY stats.py */
+-- STATS AND REPORTS
 
 create table players (
     player_id integer,
@@ -91,11 +61,29 @@ create table players (
     weight integer,
     hand char,
     primary key(player_id)
-) engine = InnoDB;
+) engine = InnoDB CHARSET=utf8;
+
+create table games (
+    game_id varchar(10) not null,
+    season varchar(10) not null,
+    game_type integer,
+    game_date date,
+    visitor varchar(100),
+    home varchar(100),
+    vscore integer,
+    hscore integer,
+    overtime boolean,
+    shootout boolean,
+    attendance integer,
+    index (game_id),
+    index (season),
+    primary key (game_id, season)
+) engine = InnoDB CHARSET=utf8;
 
 create table stats_skaters_summary (
-    player_id integer references nhl.players(player_id),
-    season integer,
+    player_id integer references players(player_id),
+    season varchar(10),
+    game_type integer,
     gp integer,
     g integer,
     a integer,
@@ -113,69 +101,73 @@ create table stats_skaters_summary (
     toi_g float,
     sft_g float,
     fo_pct float,
-    primary key (player_id, season)
-) engine = InnoDB;
+    primary key (player_id, season, game_type)
+) engine = InnoDB CHARSET=utf8;
 
 create table stats_skaters_timeonice (
-    player_id integer references nhl.players(player_id),
-    season integer,
+    player_id integer references players(player_id),
+    season varchar(10),
+    game_type integer,
     gp integer,
-    evenstrength float,
-    evenstrength_g float,
-    shorthanded float,
-    shorthanded_g float,
-    powerplay float,
-    powerplay_g float,
-    total float,
-    total_g float,
+    toi float,
+    toi_g float,
+    estoi float,
+    estoi_g float,
+    shtoi float,
+    shtoi_g float,
+    pptoi float,
+    pptoi_g float,
     shifts integer,
-    total_s float,
+    toi_shift float,
     shifts_g float,
-    primary key (player_id, season)
-) engine = InnoDB;
+    primary key (player_id, season, game_type)
+) engine = InnoDB CHARSET=utf8;
 
 create table stats_skaters_faceoff (
-    player_id integer references nhl.players(player_id),
-    season integer,
+    player_id integer references players(player_id),
+    season varchar(10),
+    game_type integer,
     gp integer,
-    evenstrength_fow integer,
-    evenstrength_fol integer,
-    powerplay_fow integer,
-    powerplay_fol integer,
-    shorthanded_fow integer,
-    shorthanded_fol integer,
-    home_fow integer,
-    home_fol integer,
-    road_fow integer,
-    road_fol integer,
+    fo integer,
     fow integer,
     fol integer,
-    total integer,
-    primary key (player_id, season)
-) engine = InnoDB;
+    esfow integer,
+    esfol integer,
+    ppfow integer,
+    ppfol integer,
+    shfow integer,
+    shfol integer,
+    hfow integer,
+    hfol integer,
+    rfow integer,
+    rfol integer,
+    primary key (player_id, season, game_type)
+) engine = InnoDB CHARSET=utf8;
 
 create table stats_skaters_points (
-    player_id integer references nhl.players(player_id),
-    season integer,
+    player_id integer references players(player_id),
+    season varchar(10),
+    game_type integer,
     gp integer,
     g integer,
     a integer,
     p integer,
     plusminus integer,
-    evenstrength_p integer,
-    shorthanded_p integer,
-    powerplay_p integer,
-    home_p integer,
-    away_p integer,
-    division_p integer,
-    nondivision_p integer,
+    esp integer,
+    shp integer,
+    ppp integer,
+    hp integer,
+    rp integer,
+    dp integer,
+    ndp integer,
     p_g float,
-    primary key (player_id, season)
-) engine = InnoDB;
+    primary key (player_id, season, game_type)
+) engine = InnoDB CHARSET=utf8;
 
 create table stats_goalies_summary (
-    player_id integer references nhl.players(player_id),
-    season integer,
+    player_id integer references players(player_id),
+    season varchar(10),
+    game_type integer,
     gp integer,
     gs integer,
     w integer,
@@ -183,47 +175,49 @@ create table stats_goalies_summary (
     ot integer,
     sa integer,
     ga integer,
-    gaa real,
+    gaa float,
     sv integer,
-    sv_pct float,
+    svpct float,
     so integer,
     g integer,
     a integer,
     pim integer,
     toi float,
-    primary key (player_id, season)
-) engine = InnoDB;
+    primary key (player_id, season, game_type)
+) engine = InnoDB CHARSET=utf8;
 
 create table stats_goalies_special (
-    player_id integer references nhl.players(player_id),
-    season integer,
+    player_id integer references players(player_id),
+    season varchar(10),
+    game_type integer,
     gp integer,
     gs integer,
-    even_shots integer,
-    even_goals integer,
-    even_saves integer,
-    even_save_pct float,
-    pp_shots integer,
-    pp_goals integer,
-    pp_saves integer,
-    pp_save_pct float,
-    sh_shots integer,
-    sh_goals integer,
-    sh_saves integer,
-    sh_save_pct float,
-    ot_games integer,
-    ot_shots integer,
-    ot_goals integer,
-    ot_save_pct float,
-    ot_gaa float,
-    primary key (player_id, season)
-) engine = InnoDB;
+    ess integer,
+    esg integer,
+    essv integer,
+    essvpct float,
+    pps integer,
+    ppg integer,
+    ppsv integer,
+    ppsvpct float,
+    shs integer,
+    shg integer,
+    shsv integer,
+    shsvpct float,
+    otgames integer,
+    ots integer,
+    otg integer,
+    otsvpct float,
+    otgaa float,
+    primary key (player_id, season, game_type)
+) engine = InnoDB CHARSET=utf8;
 
 create table gamelogs_skaters (
-    game_id integer not null references nhl.games(game_id),
-    player_id integer,
-    team text,
-    pos text,
+    season varchar(10) not null,
+    game_id varchar(10) not null,
+    player_id integer not null references players(player_id),
+    team varchar(100),
+    pos varchar(10),
     g integer,
     a integer,
     p integer,
@@ -238,13 +232,17 @@ create table gamelogs_skaters (
     pp_toi float,
     sh_toi float,
     toi float,
-    primary key (player_id, game_id)
-) engine = InnoDB;
+    index (game_id),
+    index (season),
+    primary key (season, game_id, player_id),
+    foreign key (season, game_id) references games(season, game_id)
+) engine = InnoDB CHARSET=utf8;
 
 create table gamelogs_goalies (
-    game_id integer not null references nhl.games(game_id),
-    player_id integer,
-    team text,
+    season varchar(10) not null,
+    game_id varchar(10) not null,
+    player_id integer not null references players(player_id),
+    team varchar(100),
     evenstrength_saves integer,
     evenstrength_att integer,
     powerplay_saves integer,
@@ -255,28 +253,37 @@ create table gamelogs_goalies (
     att integer,
     save_pct float,
     pim integer,
-    toi float
-) engine = InnoDB;
+    toi float,
+    primary key (season, game_id, player_id),
+    foreign key (season, game_id) references games(season, game_id)
+) engine = InnoDB CHARSET=utf8;
 
 create table games_rosters (
-    game_id integer not null references nhl.games(game_id),
-    team text,
-    status text,
-    player_id integer not null
-) engine = InnoDB;
+    season varchar(10) not null,
+    game_id varchar(10) not null,
+    player_id integer not null references players(player_id),
+    team varchar(100),
+    status varchar(100),
+    primary key (season, game_id, player_id),
+    foreign key (season, game_id) references games(season, game_id)
+) engine = InnoDB CHARSET=utf8;
 
 create table games_faceoffs (
-    game_id integer not null references nhl.games(game_id),
-    player_id integer not null references nhl.players(player_id),
-    versus integer not null references nhl.players(player_id),
-    zone text,
+    season varchar(10) not null,
+    game_id varchar(10) not null,
+    player_id integer not null references players(player_id),
+    versus integer not null references players(player_id),
+    zone varchar(5),
     wins integer,
-    attempts integer
-) engine = InnoDB;
+    attempts integer,
+    primary key (season, game_id, player_id, versus, zone),
+    foreign key (season, game_id) references games(season, game_id)
+) engine = InnoDB CHARSET=utf8;
 
-create table nhl.games_toi (
-    game_id integer not null references nhl.games(game_id),
-    player_id integer not null references nhl.players(player_id),
+create table games_toi (
+    season varchar(10) not null,
+    game_id varchar(10) not null,
+    player_id integer not null references players(player_id),
     period integer,
     shift integer,
     start_elapsed float,
@@ -284,5 +291,88 @@ create table nhl.games_toi (
     end_elapsed float,
     end_game float,
     duration float,
-    event text
-) engine = InnoDB;
+    event varchar(255),
+    primary key (season, game_id, player_id, shift),
+    foreign key (season, game_id) references games(season, game_id)
+) engine = InnoDB CHARSET=utf8;
+
+create table games_plays (
+    season varchar(10) not null,
+    game_id varchar(10) not null,
+    eventno integer,
+    period integer,
+    strength text,
+    time_elapsed float,
+    time_game float,
+    event_type varchar(255),
+    description varchar(255),
+    index (game_id),
+    index (season),
+    primary key (season, game_id, eventno),
+    foreign key (season, game_id) references games(season, game_id)
+) engine = InnoDB CHARSET=utf8;
+
+create table games_plays_players (
+    season varchar(10) not null,
+    game_id varchar(10) not null,
+    eventno integer,
+    team varchar(100),
+    longname varchar(100),
+    player_id integer not null references players(player_id),
+    pos varchar(5),
+    index (game_id),
+    index (season),
+    primary key (season, game_id, eventno, player_id),
+    foreign key (season, game_id, eventno) references games_plays(season, game_id, eventno),
+    foreign key (season, game_id) references games(season, game_id)
+) engine = InnoDB CHARSET=utf8;
+
+-- ICE TRACKER EVENTS
+
+create table games_events (
+    season varchar(10) not null,
+    game_id varchar(10) not null,
+    event_id integer,
+    formal_event_id varchar(15),
+    period integer,
+    strength integer,
+    type varchar(15),
+    shot_type varchar(15),
+    description varchar(255),
+    player_id integer,
+    team_id integer references teams(team_id),
+    xcoord integer,
+    ycoord integer,
+    home_score integer,
+    away_score integer,
+    home_sog integer,
+    away_sog integer,
+    time varchar(10),
+    video_url varchar(255),
+    altvideo_url varchar(255),
+    goalie_id integer,
+    primary key (game_id, event_id),
+    foreign key (season, game_id) references games(season, game_id)
+) engine = InnoDB CHARSET=utf8;
+
+create table games_events_players (
+    season varchar(10) not null,
+    game_id varchar(10) not null,
+    event_id integer,
+    which varchar(15),
+    player_id integer,
+    primary key (season, game_id, event_id, player_id),
+    foreign key (season, game_id, event_id) references games_events(season, game_id, event_id),
+    foreign key (season, game_id) references games(season, game_id)
+) engine = InnoDB CHARSET=utf8;
+
+create table games_events_penaltybox (
+    season varchar(10) not null,
+    game_id varchar(10) not null,
+    event_id integer,
+    player_id integer,
+    which varchar(15),
+    primary key (game_id, event_id, player_id),
+    foreign key (season, game_id, event_id) references games_events(season, game_id, event_id),
+    foreign key (season, game_id) references games(season, game_id)
+) engine = InnoDB CHARSET=utf8;

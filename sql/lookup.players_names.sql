@@ -8,14 +8,6 @@
 
 SET search_path to nhl;
 
-DROP TABLE IF EXISTS players_names;
-
-CREATE TABLE players_names (
-    player_id integer references nhl.players(player_id),
-    player_name varchar(255),
-    primary key (player_id, player_name)
-);
-
 INSERT INTO players_names VALUES
     (8464975, 'DANNY BRIERE'),
     (8466149, 'DANNY CLEARY'),

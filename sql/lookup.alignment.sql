@@ -1,17 +1,5 @@
 SET search_path to nhl;
 
-/*
-DROP TABLE IF EXISTS alignment;
-
-CREATE TABLE alignment (
-    season integer,
-    team text references nhl.teams(team),
-    division text,
-    conference text,
-    primary key (season, team, division, conference)
-);
-*/
-
 TRUNCATE alignment;
 
 -- 2005/2006 - 2010/2011

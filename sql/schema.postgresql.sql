@@ -1,7 +1,8 @@
--- STATS
+-- STATS AND REPORTS
 -- drop table if exists nhl.players cascade;
 -- drop table if exists nhl.games cascade;
--- drop table if exists nhl.stats_skaters_summary;
+-- drop table if exists nhl.teams cascade;
+-- drop table if exists nhl.players_names;
 -- drop table if exists nhl.stats_skaters_summary;
 -- drop table if exists nhl.stats_skaters_timeonice;
 -- drop table if exists nhl.stats_skaters_faceoff;
@@ -13,44 +14,73 @@
 -- drop table if exists nhl.games_rosters;
 -- drop table if exists nhl.games_faceoffs;
 -- drop table if exists nhl.games_toi;
--- EVENTS
--- drop table if exists nhl.events cascade;
--- drop table if exists nhl.events_players;
--- drop table if exists nhl.events_penaltybox;
+-- drop table if exists nhl.games_plays_players;
+-- drop table if exists nhl.games_plays;
+-- ICE TRACKER EVENTS
+-- drop table if exists nhl.games_events cascade;
+-- drop table if exists nhl.games_events_players;
+-- drop table if exists nhl.games_events_penaltybox;
 
-/* USED BY stats.py */
+-- LOOKUPS
+
+create table nhl.players_names (
+    player_id integer, -- references nhl.players(player_id),
+    player_name text,
+    primary key (player_id, player_name)
+);
+
+create table nhl.teams (
+    team text primary key,
+    longname text,
+    abbrev text,
+    team_id integer unique,
+    nickname text
+);
+
+create table nhl.alignment (
+    season text,
+    team text references nhl.teams(team),
+    division text,
+    conference text,
+    primary key (season, team, division, conference)
+);
+
+-- STATS AND REPORTS
 
 create table nhl.players (
     player_id integer,
     jersey integer,
-    player_name varchar(100),
-    pos varchar(3),
+    player_name text,
+    pos text,
     dob date,
-    birthcity varchar(100),
-    state varchar(10),
-    country varchar(10),
+    birthcity text,
+    state text,
+    country text,
     height integer,
     weight integer,
-    hand char,
+    hand text,
     primary key(player_id)
 );
 
 create table nhl.games (
-    game_id integer primary key,
-    season integer,
+    game_id text,
+    season text,
+    game_type integer,
     game_date date,
     visitor text,
     home text,
-    visitor_score integer,
-    home_score integer,
+    vscore integer,
+    hscore integer,
     overtime boolean,
     shootout boolean,
-    attendance integer
+    attendance integer,
+    primary key (season, game_id)
 );
 
 create table nhl.stats_skaters_summary (
     player_id integer references nhl.players(player_id),
-    season integer,
+    season text,
+    game_type integer,
     gp integer,
     g integer,
     a integer,
@@ -64,73 +94,77 @@ create table nhl.stats_skaters_summary (
     gw integer,
     ot integer,
     s integer,
-    s_pct numeric,
-    toi_g numeric,
-    sft_g numeric,
-    fo_pct numeric,
-    primary key (player_id, season)
+    s_pct real,
+    toi_g real,
+    sft_g real,
+    fo_pct real,
+    primary key (player_id, season, game_type)
 );
 
 create table nhl.stats_skaters_timeonice (
     player_id integer references nhl.players(player_id),
-    season integer,
+    season text,
+    game_type integer,
     gp integer,
-    evenstrength numeric,
-    evenstrength_g numeric,
-    shorthanded numeric,
-    shorthanded_g numeric,
-    powerplay numeric,
-    powerplay_g numeric,
-    total numeric,
-    total_g numeric,
+    toi real,
+    toi_g real,
+    estoi real,
+    estoi_g real,
+    shtoi real,
+    shtoi_g real,
+    pptoi real,
+    pptoi_g real,
     shifts integer,
-    total_s numeric,
-    shifts_g numeric,
-    primary key (player_id, season)
+    toi_shift real,
+    shifts_g real,
+    primary key (player_id, season, game_type)
 );
 
 create table nhl.stats_skaters_faceoff (
     player_id integer references nhl.players(player_id),
-    season integer,
+    season text,
+    game_type integer,
     gp integer,
-    evenstrength_fow integer,
-    evenstrength_fol integer,
-    powerplay_fow integer,
-    powerplay_fol integer,
-    shorthanded_fow integer,
-    shorthanded_fol integer,
-    home_fow integer,
-    home_fol integer,
-    road_fow integer,
-    road_fol integer,
+    fo integer,
     fow integer,
     fol integer,
-    total integer,
-    primary key (player_id, season)
+    esfow integer,
+    esfol integer,
+    ppfow integer,
+    ppfol integer,
+    shfow integer,
+    shfol integer,
+    hfow integer,
+    hfol integer,
+    rfow integer,
+    rfol integer,
+    primary key (player_id, season, game_type)
 );
 
 create table nhl.stats_skaters_points (
     player_id integer references nhl.players(player_id),
-    season integer,
+    season text,
+    game_type integer,
     gp integer,
     g integer,
     a integer,
     p integer,
     plusminus integer,
-    evenstrength_p integer,
-    shorthanded_p integer,
-    powerplay_p integer,
-    home_p integer,
-    away_p integer,
-    division_p integer,
-    nondivision_p integer,
-    p_g numeric,
-    primary key (player_id, season)
+    esp integer,
+    shp integer,
+    ppp integer,
+    hp integer,
+    rp integer,
+    dp integer,
+    ndp integer,
+    p_g real,
+    primary key (player_id, season, game_type)
 );
 
 create table nhl.stats_goalies_summary (
     player_id integer references nhl.players(player_id),
-    season integer,
+    season text,
+    game_type integer,
     gp integer,
     gs integer,
     w integer,
@@ -140,42 +174,44 @@ create table nhl.stats_goalies_summary (
     ga integer,
     gaa real,
     sv integer,
-    sv_pct numeric,
+    svpct real,
     so integer,
     g integer,
     a integer,
     pim integer,
-    toi numeric,
-    primary key (player_id, season)
+    toi real,
+    primary key (player_id, season, game_type)
 );
 
 create table nhl.stats_goalies_special (
     player_id integer references nhl.players(player_id),
-    season integer,
+    season text,
+    game_type integer,
     gp integer,
     gs integer,
-    even_shots integer,
-    even_goals integer,
-    even_saves integer,
-    even_save_pct numeric,
-    pp_shots integer,
-    pp_goals integer,
-    pp_saves integer,
-    pp_save_pct numeric,
-    sh_shots integer,
-    sh_goals integer,
-    sh_saves integer,
-    sh_save_pct numeric,
-    ot_games integer,
-    ot_shots integer,
-    ot_goals integer,
-    ot_save_pct numeric,
-    ot_gaa numeric,
-    primary key (player_id, season)
+    ess integer,
+    esg integer,
+    essv integer,
+    essvpct real,
+    pps integer,
+    ppg integer,
+    ppsv integer,
+    ppsvpct real,
+    shs integer,
+    shg integer,
+    shsv integer,
+    shsvpct real,
+    otgames integer,
+    ots integer,
+    otg integer,
+    otsvpct real,
+    otgaa real,
+    primary key (player_id, season, game_type)
 );
 
 create table nhl.gamelogs_skaters (
-    game_id integer not null references nhl.games(game_id),
+    season text not null,
+    game_id text not null,
     player_id integer references nhl.players(player_id),
     team text,
     pos text,
@@ -189,14 +225,17 @@ create table nhl.gamelogs_skaters (
     blocks integer,
     giveaways integer,
     takeaways integer,
-    faceoff_pct numeric,
-    pp_toi numeric,
-    toi numeric,
-    primary key (player_id, game_id)
+    faceoff_pct real,
+    pp_toi real,
+    sh_toi real,
+    toi real,
+    primary key (season, game_id, player_id),
+    foreign key (season, game_id) references nhl.games(season, game_id)
 );
 
 create table nhl.gamelogs_goalies (
-    game_id integer not null references nhl.games(game_id),
+    season text not null,
+    game_id text not null,
     player_id integer references nhl.players(player_id),
     team text,
     evenstrength_saves integer,
@@ -207,88 +246,136 @@ create table nhl.gamelogs_goalies (
     shorthanded_att integer,
     saves integer,
     att integer,
-    save_pct numeric,
+    save_pct real,
     pim integer,
-    toi numeric
+    toi real,
+    primary key (season, game_id, player_id),
+    foreign key (season, game_id) references nhl.games(season, game_id)
 );
 
 create table nhl.games_rosters (
-    game_id integer not null references nhl.games(game_id),
+    season text not null,
+    game_id text not null,
     player_id integer not null references nhl.players(player_id),
     team text,
-    status text
+    status text,
+    primary key (season, game_id, player_id),
+    foreign key (season, game_id) references nhl.games(season, game_id)
 );
 
 create table nhl.games_faceoffs (
-    game_id integer not null references nhl.games(game_id),
+    season text not null,
+    game_id text not null,
     player_id integer not null references nhl.players(player_id),
     versus integer not null references nhl.players(player_id),
     zone text,
     wins integer,
-    attempts integer
+    attempts integer,
+    primary key (season, game_id, player_id, versus, zone),
+    foreign key (season, game_id) references nhl.games(season, game_id)
 );
 
 create table nhl.games_toi (
-    game_id integer not null references nhl.games(game_id),
+    season text not null,
+    game_id text not null,
     player_id integer not null references nhl.players(player_id),
     period integer,
     shift integer,
-    start_elapsed numeric,
-    start_game numeric,
-    end_elapsed numeric,
-    end_game numeric,
-    duration numeric,
-    event text
+    start_elapsed real,
+    start_game real,
+    end_elapsed real,
+    end_game real,
+    duration real,
+    event text,
+    primary key (season, game_id, player_id, shift),
+    foreign key (season, game_id) references nhl.games(season, game_id)
 );
 
-/* USED BY events.py */
+create table nhl.games_plays (
+    season text not null,
+    game_id text not null,
+    eventno integer,
+    period integer,
+    strength text,
+    time_elapsed real,
+    time_game real,
+    event_type text,
+    description text,
+    primary key (season, game_id, eventno),
+    foreign key (season, game_id) references nhl.games(season, game_id)
+);
 
-create table nhl.events (
+create table nhl.games_plays_players (
+    season text not null,
+    game_id text not null,
+    eventno integer,
+    team text,
+    longname text,
+    player_id integer not null references nhl.players(player_id),
+    pos text,
+    primary key (season, game_id, eventno, player_id),
+    foreign key (season, game_id, eventno) references nhl.games_plays(season, game_id, eventno),
+    foreign key (season, game_id) references nhl.games(season, game_id)
+);
+
+-- ICE TRACKER EVENTS
+
+create table nhl.games_events (
+    season text not null,
+    game_id text not null,
+    team_id integer references nhl.teams(team_id),
     event_id integer,
-    formal_event_id varchar(15),
-    game_id integer references nhl.games(game_id),
+    formal_event_id text,
     period integer,
     strength integer,
-    type varchar(15),
-    shot_type varchar(15),
-    description varchar(255),
+    type text,
+    shot_type text,
+    description text,
     player_id integer,
-    team_id integer references nhl.teams(team_id),
     xcoord integer,
     ycoord integer,
     home_score integer,
     away_score integer,
     home_sog integer,
     away_sog integer,
-    time varchar(10),
-    video_url varchar(255),
-    altvideo_url varchar(255),
+    time text,
+    video_url text,
+    altvideo_url text,
     goalie_id integer,
-    primary key (game_id, event_id)
+    primary key (season, game_id, event_id),
+    foreign key (season, game_id) references nhl.games(season, game_id)
 );
 
-create table nhl.events_players (
-    game_id integer references nhl.games(game_id),
+create table nhl.games_events_players (
+    season text not null,
+    game_id text not null,
     event_id integer,
-    which varchar(15),
     player_id integer,
-    foreign key(game_id, event_id) references nhl.events(game_id, event_id)
+    which text,
+    primary key (season, game_id, event_id, player_id),
+    foreign key (season, game_id, event_id) references nhl.games_events(season, game_id, event_id),
+    foreign key (season, game_id) references nhl.games(season, game_id)
 );
 
-create table nhl.events_penaltybox (
-    game_id integer references nhl.games(game_id),
+create table nhl.games_events_penaltybox (
+    season text not null,
+    game_id text not null,
     event_id integer,
-    which varchar(15),
     player_id integer,
-    foreign key(game_id, event_id) references nhl.events(game_id, event_id)
+    which text,
+    primary key (game_id, event_id, player_id),
+    foreign key (season, game_id, event_id) references nhl.games_events(season, game_id, event_id),
+    foreign key (season, game_id) references nhl.games(season, game_id)
 );
 
 /* indexes */
 
-create index idx_events_game_id on events(game_id);
-create index idx_events_team_id on events(team_id);
-create index idx_events_player_id on events(player_id);
-create index idx_events_players_player_id on events_players(player_id);
-create index idx_events_penaltybox_player_id on events_penaltybox(player_id);
+/*
+create index idx_events_game_id on nhl.events(game_id);
+create index idx_events_team_id on nhl.events(team_id);
+create index idx_events_player_id on nhl.events(player_id);
+create index idx_events_players_player_id on nhl.events_players(player_id);
+create index idx_events_penaltybox_player_id on nhl.events_penaltybox(player_id);
 create index idx_games_toi_combo on nhl.games_toi(game_id, period, shift);
 create index idx_games_toi_combo2 on nhl.games_toi(game_id, period, start_elapsed);
+*/
