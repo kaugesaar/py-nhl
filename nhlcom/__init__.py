@@ -49,6 +49,7 @@ class NHLObject:
             self.logmessage(msg, loglevel=logging.ERROR)
             return None
 
+
 class BaseReport(NHLObject):
     def __init__(self, url, view_name, pos=None, maxpages=None, timeout=30, **kwargs):
         super(BaseReport, self).__init__(timeout=timeout)

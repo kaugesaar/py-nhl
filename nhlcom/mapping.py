@@ -1,3 +1,7 @@
+"""
+This contains all-- well, most of the mapping between local database columns
+and the values stored in the dicts retrieved from NHL.com
+"""
 reportmap = {
     'S': {
         'bios': 'players',
@@ -138,19 +142,43 @@ fieldmap = {
         'otsvpct': 'Sv%, 3',
         'otgaa': 'GAA'
     }, 'games_plays': {
+        'season': 'season',
         'game_id': 'game_id',
         'eventno': 'eventno',
         'period': 'period',
+        'strength': 'strength',
         'time_elapsed': 'time_elapsed',
         'time_game': 'time_game',
         'event_type': 'event_type',
         'description': 'description'
     }, 'games_plays_players': {
+        'season': 'season',
         'game_id': 'game_id',
         'eventno': 'eventno',
         'period': 'period',
         'team': 'team',
         'player_id': 'player_id'
+    }, 'games_events': {
+        'game_id': 'game_id',
+        'team_id': 'teamid',
+        'event_id': 'eventid',
+        'formal_event_id': 'formalEventId',
+        'period': 'period',
+        'strength': 'strength',
+        'type': 'type',
+        'shot_type': 'g_shotType',
+        'description': 'desc',
+        'player_id': 'pid',
+        'xcoord': 'xcoord',
+        'ycoord': 'ycoord',
+        'home_score': 'hs',
+        'away_score': 'as',
+        'home_sog': 'hsog',
+        'away_sog': 'asog',
+        'time': 'time',
+        'video_url': 'video',
+        'altvideo_url': 'altVideo',
+        'goalie_id': 'pid2'
     }, 'players': {
         'player_id': 'Player ID',
         'jersey': '#',

@@ -2,9 +2,11 @@ from . import BaseReport, parse_time
 from datetime import datetime
 from pprint import pprint
 
+
 import urllib.request, urllib.error, urllib.parse
 import logging
 import re
+
 
 class players(BaseReport):
     def __init__(self, view, pos=None, maxpages=None, **kwargs):
@@ -45,6 +47,7 @@ class players(BaseReport):
                 row[key] = int(row[key].replace(',', ''))
 
         return row
+
 
 class games(BaseReport):
     def __init__(self, view, maxpages=None, **kwargs):

@@ -3,9 +3,12 @@ from bs4 import BeautifulSoup, Tag
 from datetime import datetime
 from pprint import pprint
 
+
 import urllib.request, urllib.error, urllib.parse
 import logging
 import re
+import json
+
 
 class PlayByPlay(NHLObject):
     def __init__(self, season, game_id):
@@ -18,34 +21,66 @@ class PlayByPlay(NHLObject):
         url = 'scores/htmlreports/%s/PL%s.HTM' % (season, game_id)
         c = self.geturl(url)
         soup = BeautifulSoup(c)
-        rows = soup.find_all('tr', class_='evenColor')
+        self.visitor = str(soup.select('table#Visitor')[0].find_all('td')[-1].contents[0])
+        self.home = str(soup.select('table#Home')[0].find_all('td')[-1].contents[0])
         
-        for row in rows:
+        table = soup.find('table').find_all('tr', recursive=False)[2]
+        teamcells = [cell.text.strip() for cell in table.find_all('td')[-2:]]
+        teamcells = [cell.replace(' On Ice', '') for cell in teamcells]
+        self.visitor_short, self.home_short = teamcells
+        
+        for row in soup.find_all('tr', class_='evenColor'):
             cells = row.find_all('td', recursive=False)
             eventno, period, strength = [c.text for c in cells[0:3]]
-            elapsed, game = [c.string for c in cells[3].contents]
+            if len(cells[3].text.strip()) == 0: # Only in the Peverley game :(
+                elapsed = None
+                game = None
+            else:
+                elapsed, game = [c.string for c in cells[3].contents]
+            
             event_type, description = [c.text for c in cells[4:6]]
-            ice = {'visitor': [], 'home': []}
-            
+            ice = {self.visitor_short: [], self.home_short: []}
+
             for i, cell in enumerate(cells[6:8]):
-                for item in cell.find_all('font'):
-                    player = re.sub('.+?- ', '', item['title'])
-                    jersey = item.text
-                    team = 'visitor' if i == 0 else 'home'
-                    ice[team].append({'player': player, 'jersey': jersey})
-            
+                icetable = cell.find('table')
+                if icetable is None: # GEND events don't have players
+                    continue
+                for playertable in icetable.find_all('table'):
+                    pcells = [x.find('td') for x in playertable.find_all('tr')]
+                    font = pcells[0].find('font')
+                    pos = pcells[1].text.strip()
+                    if not font or 'title' not in font.attrs.keys():
+                        self.logmessage('No title attribute found for item')
+                        continue
+                    
+                    player = re.sub('.+?- ', '', font['title'])
+                    jersey = font.text
+                    teamkey = self.visitor_short if i == 0 else self.home_short
+                    longname = self.visitor if i == 0 else self.home
+                    side = 'visitor' if i == 0 else 'home'
+                    record = {
+                        'player': player,
+                        'jersey': jersey,
+                        'pos': pos,
+                        'team': teamkey,
+                        'longname': longname,
+                        'side': side
+                    }
+                    ice[teamkey].append(record)
+
             if period not in self.periods:
                 self.periods[period] = []
             
             # Deal with crappy information
-            if elapsed.find('0-1') >= 0:
+            if elapsed and elapsed.find('0-1') >= 0:
                 continue
 
             self.periods[period].append({
+                'season': season,
                 'game_id': game_id,
                 'eventno': eventno,
                 'period': period,
-                'strength': strength,
+                'strength': strength.strip(),
                 'time_elapsed': parse_time(elapsed),
                 'time_game': parse_time(game),
                 'event_type': event_type,
@@ -53,6 +88,7 @@ class PlayByPlay(NHLObject):
                 'ice': ice,
                 'period': period
             })
+
 
 class Faceoffs(NHLObject):
     def __init__(self, season, game_id):
@@ -93,6 +129,7 @@ class Faceoffs(NHLObject):
                     'T': t.split('/')[0].strip().split('-')
                 }
 
+
 class TimeOnIce(NHLObject):
     def __init__(self, season, game_id):
         super(TimeOnIce, self).__init__()
@@ -131,6 +168,7 @@ class TimeOnIce(NHLObject):
                             }
 
                             self.toi[team][playername].append(shift)
+
 
 class Rosters(NHLObject):
     def __init__(self, season, game_id):
@@ -180,6 +218,7 @@ class Rosters(NHLObject):
                         if playername.find('Name') == -1:
                             self.roster[key][status].append(playername)
 
+
 class Boxscore(NHLObject):
     def __init__(self, season, game_id):
         super(Boxscore, self).__init__()
@@ -213,4 +252,22 @@ class Boxscore(NHLObject):
                 for gk in ['EV', 'SH', 'PP', 'Saves - Shots']:
                     if gk in d:
                         d[gk] = [x.strip() for x in d[gk].split('-')]
+                d = dict([(k, None if v == '-' else v) for (k,v) in d.items()])
                 self.logs[team][playertype].append(d)
+
+
+class Events(NHLObject):
+    def __init__(self, season, game_id):
+        super(Events, self).__init__()
+        self.game_id = game_id
+        self.season = season
+        self.events = []
+
+        try:
+            url = '/GameData/%s/%s%s/PlayByPlay.json' % (season, season[:4], game_id)
+            content = self.geturl(url, root='http://live.nhl.com').decode("utf-8")
+            obj = json.loads(content)
+            for event in obj['data']['game']['plays']['play']:
+                self.events.append(event)
+        except:
+            pass
