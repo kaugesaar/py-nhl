@@ -212,11 +212,15 @@ class Rosters(NHLObject):
                         home = cells[1].text
                     if len(cells) == 3:
                         # Player
-                        playername = cells[2].text.strip()
+                        jersey, pos, name = [c.text.strip() for c in cells]
                         for stripkey in ['(C)', '(A)']:
-                            playername = playername.replace(stripkey, '')
-                        if playername.find('Name') == -1:
-                            self.roster[key][status].append(playername)
+                            name = name.replace(stripkey, '').strip()
+                        if name.find('Name') == -1:
+                            self.roster[key][status].append({
+                                'name': name,
+                                'jersey': jersey,
+                                'pos': pos
+                            })
 
 
 class Boxscore(NHLObject):

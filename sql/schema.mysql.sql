@@ -264,6 +264,8 @@ create table games_rosters (
     player_id integer not null references players(player_id),
     team varchar(100),
     status varchar(100),
+    jersey integer,
+    pos varchar(3),
     primary key (season, game_id, player_id),
     foreign key (season, game_id) references games(season, game_id)
 ) engine = InnoDB CHARSET=utf8;

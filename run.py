@@ -143,21 +143,21 @@ def save_roster(report):
     for team, statuses in report.roster.items():
         for status, players in statuses.items():
             for player in players:
-                player_id = get_player_id(player)
+                player_id = get_player_id(player['name'])
                 
                 if not player_id:
-                    logger.log(logging.ERROR, 'Cannot find player ID for name %s' % player.upper())
+                    logger.log(logging.ERROR, 'Cannot find player ID for name %s' % player['name'].upper())
                     continue
                 
-                params = {
+                session.merge(roster(**{
                     'season': report.season,
                     'game_id': game_id,
                     'player_id': player_id,
                     'team': team,
-                    'status': status
-                }
-                
-                session.merge(roster(**params))
+                    'status': status,
+                    'jersey': player['jersey'],
+                    'pos': player['pos']
+                }))
 
 
 def save_box(report):

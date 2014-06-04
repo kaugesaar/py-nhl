@@ -259,6 +259,8 @@ create table nhl.games_rosters (
     player_id integer not null references nhl.players(player_id),
     team text,
     status text,
+    jersey integer,
+    pos text,
     primary key (season, game_id, player_id),
     foreign key (season, game_id) references nhl.games(season, game_id)
 );
