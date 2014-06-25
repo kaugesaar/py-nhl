@@ -19,11 +19,15 @@ class PlayByPlay(NHLObject):
         self.periods = {}
         
         url = 'scores/htmlreports/%s/PL%s.HTM' % (season, game_id)
-        c = self.geturl(url)
-        soup = BeautifulSoup(c)
-        self.visitor = str(soup.select('table#Visitor')[0].find_all('td')[-1].contents[0])
-        self.home = str(soup.select('table#Home')[0].find_all('td')[-1].contents[0])
-        
+
+        try:
+            soup = BeautifulSoup(self.geturl(url))
+            self.visitor = str(soup.select('table#Visitor')[0].find_all('td')[-1].contents[0])
+            self.home = str(soup.select('table#Home')[0].find_all('td')[-1].contents[0])
+        except Exception as e:
+            self.logmessage('Cannot parse play by play report from %s (%s)' % (url, e), loglevel=logging.ERROR)
+            return None
+
         table = soup.find('table').find_all('tr', recursive=False)[2]
         teamcells = [cell.text.strip() for cell in table.find_all('td')[-2:]]
         teamcells = [cell.replace(' On Ice', '') for cell in teamcells]
@@ -98,9 +102,13 @@ class Faceoffs(NHLObject):
         self.faceoffs = {}
         
         url = 'scores/htmlreports/%s/FC%s.HTM' % (season, game_id)
-        c = self.geturl(url)
-        soup = BeautifulSoup(c)
         
+        try:
+            soup = BeautifulSoup(self.geturl(url))
+        except Exception as e:
+            self.logmessage('Cannot parse faceoff report from %s (%s)' % (url, e), loglevel=logging.ERROR)
+            return None
+
         for row in soup.find_all('tr'):
             cells = row.find_all('td')
             if len(cells) == 7:
@@ -139,8 +147,13 @@ class TimeOnIce(NHLObject):
         
         for key in ['H', 'V']:
             url = 'scores/htmlreports/%s/T%s%s.HTM' % (season, key, game_id)
-            c = self.geturl(url)
-            soup = BeautifulSoup(c)
+
+            try:
+                soup = BeautifulSoup(self.geturl(url))
+            except Exception as e:
+                self.logmessage('Cannot parse TOI report from %s (%s)' % (url, e), loglevel=logging.ERROR)
+                return None
+
             team = soup.select('td.teamHeading')[0].text
 
             self.toi[team] = {}
@@ -179,8 +192,13 @@ class Rosters(NHLObject):
         tables = {}
         
         url  = 'scores/htmlreports/%s/RO%s.HTM' % (season, game_id)
-        soup = BeautifulSoup(self.geturl(url))
-        
+
+        try:
+            soup = BeautifulSoup(self.geturl(url))
+        except Exception as e:
+            self.logmessage('Cannot parse roster report from %s (%s)' % (url, e), loglevel=logging.ERROR)
+            return None
+
         try:
             maintable = soup.find_all('table', class_='tablewidth')[1]
             teamtable  = maintable.find_all('tr', recursive=False)[2].find('table')
@@ -230,8 +248,12 @@ class Boxscore(NHLObject):
         self.game_id = game_id
         self.logs = {}
 
-        url = 'gamecenter/boxscore?id=%s%s' % (season[:4], game_id)
-        soup = BeautifulSoup(self.geturl(url))
+        try:
+            url = 'gamecenter/boxscore?id=%s%s' % (season[:4], game_id)
+            soup = BeautifulSoup(self.geturl(url))
+        except Exception as e:
+            self.logmessage('Cannot parse boxscore report from %s (%s)' % (url, e), loglevel=logging.ERROR)
+            return None
 
         tables = soup.select('div.tableHeader')
 
@@ -273,5 +295,6 @@ class Events(NHLObject):
             obj = json.loads(content)
             for event in obj['data']['game']['plays']['play']:
                 self.events.append(event)
-        except:
-            pass
+        except Exception as e:
+            self.logmessage('Cannot parse events report from %s (%s)' % (url, e), loglevel=logging.ERROR)
+            return None

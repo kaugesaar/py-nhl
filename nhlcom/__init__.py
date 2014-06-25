@@ -139,12 +139,13 @@ class BaseReport(NHLObject):
         
         for page in range(1, self.maxpages + 1):
             kwargs['pg'] = page
-            res = self.geturl(self.pageURL, **kwargs)
-            soup = BeautifulSoup(res)
-            
-            if soup is None:
+
+            try:
+                res = self.geturl(self.pageURL, **kwargs)
+                soup = BeautifulSoup(res)
+            except:
                 return
-            
+
             table = soup.find('table', class_='stats')
             header = table.find('thead').find_all('th')
             body = table.find('tbody').find_all('tr')
