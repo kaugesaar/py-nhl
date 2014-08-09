@@ -34,7 +34,7 @@ create table nhl.teams (
     longname text,
     abbrev text,
     team_id integer unique,
-    nickname text
+    play_abbrev text unique, -- The abbreviation used in play by play
 );
 
 create table nhl.alignment (
@@ -317,7 +317,9 @@ create table nhl.games_plays_players (
     pos text,
     primary key (season, game_id, eventno, player_id),
     foreign key (season, game_id, eventno) references nhl.games_plays(season, game_id, eventno),
-    foreign key (season, game_id) references nhl.games(season, game_id)
+    foreign key (season, game_id) references nhl.games(season, game_id),
+    foreign key (longname) references nhl.teams(longname),
+    foreign key (team) references nhl.teams(play_abbrev)
 );
 
 -- ICE TRACKER EVENTS

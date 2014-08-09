@@ -2,6 +2,7 @@
 This contains all-- well, most of the mapping between local database columns
 and the values stored in the dicts retrieved from NHL.com
 """
+
 reportmap = {
     'S': {
         'bios': 'players',
@@ -189,6 +190,7 @@ fieldmap = {
         'country': 'Ctry',
         'height': 'HT',
         'weight': 'Wt',
-        'hand': 'S'
+        'hand': 'S',
+        'dob': 'DOB'
     }
 }

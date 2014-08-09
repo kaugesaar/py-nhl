@@ -5,6 +5,9 @@ from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.sql.expression import extract
 from datetime import datetime, timedelta
 
+from pprint import pprint
+from argparse import ArgumentParser
+
 import sqlalchemy
 import logging
 import sys
@@ -236,23 +239,35 @@ def save_events(report):
         for key in ['aoi', 'hoi', 'hpb', 'apb']:
             if key in event:
                 for player_id in set(event[key]):
-                    params = {
-                        'season': report.season,
-                        'game_id': game_id,
-                        'event_id': event['eventid'],
-                        'player_id': player_id,
-                        'which': 'visitor' if key in ['aoi', 'apb'] else 'home'
-                    }
-                    if key in ['aoi', 'hoi']:
-                        session.merge(ep(**params))
-                    else:
-                        session.merge(epb(**params))
+                    if player_id:
+                        params = {
+                            'season': report.season,
+                            'game_id': game_id,
+                            'event_id': event['eventid'],
+                            'player_id': player_id,
+                            'which': 'visitor' if key in ['aoi', 'apb'] else 'home'
+                        }
+                        if key in ['aoi', 'hoi']:
+                            session.merge(ep(**params))
+                        else:
+                            session.merge(epb(**params))
 
 
 def parse_recent_games(season, game_type,
                        daysold=None, month=None, day=None, year=None,
                        game_id=None, limit=None):
     global session, Base, Classes
+    
+    """
+    season: the NHL season
+    game_type: the NHL game type (2: regular, 3: playoffs)
+    daysold: only process games within N of das
+    month: all games for the month specified
+    day: all games on the day of the month specified
+    year: all games during the year specified
+    game_id: process a specific game
+    limit: only process N number of games
+    """
 
     logger = logging.getLogger("nhlcom")
 
@@ -308,6 +323,7 @@ def parse_games(season, game_type):
 
 def parse_reports(season, game_type):
     global session, Base, Classes
+    
     for pos, tables in mapping.reportmap.items():
         for view in sorted(tables.keys()):
             table = tables[view]
@@ -326,13 +342,6 @@ def parse_reports(season, game_type):
                 items = mapping.fieldmap[table].items()
                 params = {local: check(row[remote]) for local, remote in items}
                 obj = dbclass(**params)
-                
-                if table == 'players':
-                    if session.query(dbclass). \
-                        filter(dbclass.player_id == obj.player_id). \
-                        first():
-                            continue
-
                 session.merge(obj)
 
 
@@ -343,6 +352,12 @@ def main():
     if pwd == '': pwd = '.'
     config = configparser.ConfigParser()
     config.readfp(open('%s/py-nhl.ini' % pwd))
+    
+    parser = ArgumentParser()
+    parser.add_argument("--season", help="NHL season, e.g. 20132014", required=True, action='append')
+    parser.add_argument("--game_type", help="Game type (2=regular season, 3=playoffs)", required=True, action='append')
+    parser.add_argument("--game_id", help="Game ID to parse specific game", action='append')
+    args = parser.parse_args()
     
     ENGINE = config['database'].get('engine')
     HOST = config['database'].get('host')
@@ -390,12 +405,17 @@ def main():
     logger = logging.getLogger('nhlcom')
     logger.addHandler(s1)
     logger.setLevel(logging.DEBUG)
-
-    for season in ['20132014']:
-        for game_type in [2,3]:
-            parse_games(season, game_type)
-            parse_reports(season, game_type)
-            parse_recent_games(season, game_type, daysold=2)
+    
+    
+    for season in set(args.season):
+        for game_type in set(args.game_type):
+            if args.game_id:
+                for game_id in set(args.game_id):
+                    parse_recent_games(season, game_type, game_id=game_id)
+            else:
+                parse_games(season, game_type)
+                parse_reports(season, game_type)
+                parse_recent_games(season, game_type, daysold=2)
             session.commit()
     logger.log(logging.INFO, 'All done!')
 

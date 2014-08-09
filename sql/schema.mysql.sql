@@ -35,7 +35,7 @@ create table teams (
     longname varchar(100),
     abbrev varchar(5),
     team_id integer unique,
-    nickname varchar(100)
+    play_abbrev varchar(5)
 ) engine = InnoDB CHARSET=utf8;
 
 create table alignment (
@@ -326,7 +326,9 @@ create table games_plays_players (
     index (season),
     primary key (season, game_id, eventno, player_id),
     foreign key (season, game_id, eventno) references games_plays(season, game_id, eventno),
-    foreign key (season, game_id) references games(season, game_id)
+    foreign key (season, game_id) references games(season, game_id),
+    foreign key (longname) references teams(longname),
+    foreign key (team) references teams(play_abbrev)
 ) engine = InnoDB CHARSET=utf8;
 
 -- ICE TRACKER EVENTS
