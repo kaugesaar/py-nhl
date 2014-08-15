@@ -113,6 +113,26 @@ join nhl.games using (season, game_id)
 group by games.season, game_type
 order by games.season asc;
 
+\echo 'Games plays'
+select
+    games.season,
+    game_type,
+    count(games_plays.*)
+from nhl.games_plays
+join nhl.games using (season, game_id)
+group by games.season, game_type
+order by games.season asc;
+
+\echo 'Games plays - players'
+select
+    games.season,
+    game_type,
+    count(games_plays_players.*)
+from nhl.games_plays_players
+join nhl.games using (season, game_id)
+group by games.season, game_type
+order by games.season asc;
+
 \echo 'Ice Tracker Events'
 select
     games.season,

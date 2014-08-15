@@ -8,6 +8,8 @@
 
 SET search_path to nhl;
 
+TRUNCATE players_names;
+
 INSERT INTO players_names VALUES
     (8464975, 'DANNY BRIERE'),
     (8466149, 'DANNY CLEARY'),
@@ -65,4 +67,5 @@ INSERT INTO players_names VALUES
     (8477092, 'ANDREY MAKAROV'),
     (8476373, 'NIKLAS LUNDSTROM'),
     (8477715, 'TYLER GAUDET'),
-    (8475241, 'SERGEY ANDRONOV');
+    (8475241, 'SERGEY ANDRONOV'),
+    (8470257, 'ALEX STEEN');
