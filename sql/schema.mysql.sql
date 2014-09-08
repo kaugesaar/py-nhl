@@ -27,7 +27,7 @@ drop table if exists games_events;
 create table players_names (
     player_id integer, -- references players(player_id),
     player_name varchar(255) CHARACTER set utf8 COLLATE utf8_bin,
-    primary key (`player_id`,`player_name`)
+    primary key (player_id, player_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
 
 create table teams (
